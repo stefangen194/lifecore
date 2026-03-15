@@ -10,7 +10,7 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-<script type="text/javascript">
+<<script type="text/javascript">
   (function(d, t) {
       var v = d.createElement(t), s = d.getElementsByTagName(t)[0];
       v.onload = function() {
@@ -20,6 +20,12 @@
           versionID: 'production',
           voice: {
             url: "https://runtime-api.voiceflow.com"
+          },
+          // Add this render configuration
+          render: {
+            mode: 'overlay',
+            side: 'right', 
+            position: 'bottom'
           }
         });
       }
