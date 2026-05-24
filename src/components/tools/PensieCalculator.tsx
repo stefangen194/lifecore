@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Users } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { InputField, Button } from '../ui';
 
 const PensieCalculator: React.FC = () => {
   const [varstaActuala, setVarstaActuala] = useState('');
@@ -15,14 +15,10 @@ const PensieCalculator: React.FC = () => {
   const [pensieDeStat, setPensieDeStat] = useState(0);
   const [contributieSuplimentara, setContributieSuplimentara] = useState(0);
   const [totalLunar, setTotalLunar] = useState(0);
-  const [chartData, setChartData] = useState([
-    { year: 0, pensieStat: 0, contributieSuplimentara: 0, venitOptim: 0 },
-  ]);
 
   const calculeazaPensia = () => {
     const varstaActualaNum = parseFloat(varstaActuala) || 0;
     const varstaPensionareNum = parseFloat(varstaPensionare) || 0;
-    const venitOptimNum = parseFloat(venitOptimRetragere) || 0;
     const salariuActualNum = parseFloat(salariulActual) || 0;
     const contributieLunaraNum = parseFloat(contributieLunaraSuplimentara) || 0;
     const randamentNum = (parseFloat(randamentAnual) || 0) / 100;
@@ -42,256 +38,159 @@ const PensieCalculator: React.FC = () => {
     let contributieTotala = 0;
     if (contributieLunaraNum > 0 && randamentNum > 0) {
       // Step 1: Calculate the accumulated value at retirement using annual compounding
-      // Even though deposits are monthly, interest is compounded annually
       let currentBalance = 0;
       const monthlyContribution = contributieLunaraNum;
-      
+
       // Simulate year by year growth (annual compounding)
       for (let year = 1; year <= aniPanaLaPensionare; year++) {
-        // Apply annual compound interest to existing balance
-        currentBalance *= (1 + randamentNum);
-        
-        // Add this year's contributions (12 monthly contributions)
-        // These contributions don't earn interest until next year
+        currentBalance *= 1 + randamentNum;
         const yearlyContribution = monthlyContribution * 12;
         currentBalance += yearlyContribution;
       }
-      
+
       const futureValue = currentBalance;
-      
+
       // Step 2: Convert the lump sum to monthly payments over the esalonare period
       contributieTotala = futureValue / perioadaEsalonareNum;
     }
 
     const totalLunarCalculat = pensieStat + contributieTotala;
 
-    // Generate chart data
-    const newChartData = [];
-    for (let year = 0; year <= aniPanaLaPensionare; year++) {
-      let contributieCumulata = 0;
-      if (contributieLunaraNum > 0 && randamentNum > 0 && year > 0) {
-        // Calculate accumulated value up to this year using annual compounding
-        let yearlyBalance = 0;
-        const monthlyContribution = contributieLunaraNum;
-        
-        for (let y = 1; y <= year; y++) {
-          // Apply annual compound interest to existing balance
-          yearlyBalance *= (1 + randamentNum);
-          
-          // Add this year's contributions (12 monthly contributions)
-          const yearlyContribution = monthlyContribution * 12;
-          yearlyBalance += yearlyContribution;
-        }
-        
-        // Convert to monthly pension over esalonare period
-        contributieCumulata = yearlyBalance / perioadaEsalonareNum;
-      }
-
-      newChartData.push({
-        year: year,
-        pensieStat: Math.round(pensieStat),
-        contributieSuplimentara: Math.round(contributieCumulata),
-        venitOptim: Math.round(venitOptimNum)
-      });
-    }
-
     // Update state
     setPensieDeStat(Math.round(pensieStat));
     setContributieSuplimentara(Math.round(contributieTotala));
     setTotalLunar(Math.round(totalLunarCalculat));
-    setChartData(newChartData);
   };
 
+  const venitOptimNum = parseFloat(venitOptimRetragere) || 0;
+  const maxBar = Math.max(pensieDeStat, contributieSuplimentara, venitOptimNum, 1);
+
+  const bars = [
+    { label: 'Pensie de Stat', value: pensieDeStat, bar: 'bg-ink-600', text: 'text-paper', head: 'text-ink-600' },
+    { label: 'Contribuție Suplimentară', value: contributieSuplimentara, bar: 'bg-gold-500', text: 'text-[#0B0B0C]', head: 'text-gold-500' },
+    { label: 'Venit Optim', value: venitOptimNum, bar: 'bg-gold-700', text: 'text-paper', head: 'text-gold-700' },
+  ];
+
   return (
-    <div className="bg-white p-4 md:p-8 rounded-lg shadow-lg max-w-7xl mx-auto mb-8">
+    <div className="bg-paper-hi border border-ink-300 p-4 md:p-8 rounded-lg shadow-lg max-w-7xl mx-auto mb-8">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
-        {/* Left Column */}
+        {/* Left Column — inputs */}
         <div>
           <div className="mb-6 md:mb-8">
-            <h2 className="text-xl md:text-2xl font-semibold text-gray-900 mb-2">Detalii Pensionare</h2>
-            <p className="text-sm md:text-base text-gray-600">Completează datele pentru a calcula pensia estimată</p>
+            <h2 className="font-display text-2xl md:text-3xl text-ink-900 mb-2">Detalii Pensionare</h2>
+            <p className="text-sm md:text-base text-ink-600">Completează datele pentru a calcula pensia estimată</p>
           </div>
 
-          <div className="space-y-4 md:space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Vârsta Actuală
-              </label>
-              <input
-                type="number"
-                value={varstaActuala}
-                onChange={(e) => setVarstaActuala(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="Ex: 30"
-              />
-            </div>
+          <div className="space-y-4 md:space-y-5">
+            <InputField
+              label="Vârsta Actuală"
+              hint="Câți ani ai acum. Definește câți ani mai contribui până la pensie."
+              type="number"
+              value={varstaActuala}
+              onChange={setVarstaActuala}
+              placeholder="Ex: 30"
+            />
+            <InputField
+              label="Vârsta de Pensionare"
+              hint="Vârsta la care vrei să te pensionezi și să începi să folosești banii."
+              type="number"
+              value={varstaPensionare}
+              onChange={setVarstaPensionare}
+              placeholder="Ex: 65"
+            />
+            <InputField
+              label="Venit Optim Retragere din Activitate (RON)"
+              hint="Venitul lunar pe care ți l-ai dori la pensie. Este ținta cu care compari rezultatul."
+              type="number"
+              value={venitOptimRetragere}
+              onChange={setVenitOptimRetragere}
+              placeholder="Ex: 4000"
+            />
+            <InputField
+              label="Salariul Actual Brut (RON)"
+              hint="Salariul tău brut lunar. Pe baza lui estimăm pensia de stat."
+              type="number"
+              value={salariulActual}
+              onChange={setSalariulActual}
+              placeholder="Ex: 5000"
+            />
+            <InputField
+              label="Contribuție Lunară Suplimentară (RON)"
+              hint="Cât pui în plus, lunar, într-un fond privat sau o investiție proprie."
+              type="number"
+              value={contributieLunaraSuplimentara}
+              onChange={setContributieLunaraSuplimentara}
+              placeholder="Ex: 300"
+            />
+            <InputField
+              label="Randament Anual Capitalizat (%)"
+              hint="Câștigul mediu anual estimat al contribuțiilor suplimentare."
+              type="number"
+              step="0.1"
+              value={randamentAnual}
+              onChange={setRandamentAnual}
+              placeholder="Ex: 7.0"
+            />
+            <InputField
+              label="Perioada Eșalonare (luni)"
+              hint="În câte luni vrei să consumi suma acumulată după pensionare (300 luni = 25 ani)."
+              type="number"
+              value={perioadaEsalonare}
+              onChange={setPerioadaEsalonare}
+              placeholder="Ex: 300"
+            />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Vârsta de Pensionare
-              </label>
-              <input
-                type="number"
-                value={varstaPensionare}
-                onChange={(e) => setVarstaPensionare(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="Ex: 65"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Venit Optim Retragere din Activitate (RON)
-              </label>
-              <input
-                type="number"
-                value={venitOptimRetragere}
-                onChange={(e) => setVenitOptimRetragere(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="Ex: 4000"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Salariul Actual Brut (RON)
-              </label>
-              <input
-                type="number"
-                value={salariulActual}
-                onChange={(e) => setSalariulActual(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="Ex: 5000"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Contribuție Lunară Suplimentară (RON)
-              </label>
-              <input
-                type="number"
-                value={contributieLunaraSuplimentara}
-                onChange={(e) => setContributieLunaraSuplimentara(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="Ex: 300"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Randament Anual Capitalizat (%)
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                value={randamentAnual}
-                onChange={(e) => setRandamentAnual(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="Ex: 7.0"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Perioada Esalonare (luni)
-              </label>
-              <input
-                type="number"
-                value={perioadaEsalonare}
-                onChange={(e) => setPerioadaEsalonare(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                placeholder="Ex: 300"
-              />
-            </div>
-
-            <button
-              onClick={calculeazaPensia}
-              className="w-full bg-blue-700 text-white py-3 px-6 rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm md:text-base"
-            >
+            <Button variant="gold" onClick={calculeazaPensia} className="w-full justify-center">
               Calculează Pensia
-            </button>
+            </Button>
           </div>
         </div>
-        
-        {/* Right Column */}
+
+        {/* Right Column — results + chart */}
         <div className="flex flex-col h-full">
-          {/* Results */}
-          <div className="bg-gray-50 p-4 md:p-6 rounded-lg">
-            <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 flex items-center">
-              <Users className="mr-2 text-blue-700" size={24} />
+          <div className="bg-paper border border-ink-300 p-4 md:p-6 rounded-lg">
+            <h3 className="font-display text-xl text-ink-900 mb-4 flex items-center">
+              <Users className="mr-2 text-gold-500" size={22} />
               Estimare Pensie
             </h3>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-gray-600 text-sm md:text-base">Pensie de Stat:</span>
-                <span className="font-medium text-sm md:text-base">{pensieDeStat.toLocaleString()} RON</span>
+                <span className="text-ink-600 text-sm md:text-base">Pensie de Stat:</span>
+                <span className="font-mono text-sm md:text-base text-ink-900">{pensieDeStat.toLocaleString()} RON</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600 text-sm md:text-base">Contribuție Suplimentară:</span>
-                <span className="font-medium text-sm md:text-base">{contributieSuplimentara.toLocaleString()} RON</span>
+                <span className="text-ink-600 text-sm md:text-base">Contribuție Suplimentară:</span>
+                <span className="font-mono text-sm md:text-base text-ink-900">{contributieSuplimentara.toLocaleString()} RON</span>
               </div>
-              <div className="border-t pt-3 flex justify-between">
-                <span className="text-gray-900 font-semibold text-sm md:text-base">Total Lunar:</span>
-                <span className={`font-bold text-sm md:text-base ${totalLunar >= (parseFloat(venitOptimRetragere) || 0) ? 'text-green-600' : 'text-red-600'}`}>{totalLunar.toLocaleString()} RON</span>
+              <div className="border-t border-ink-300 pt-3 flex justify-between">
+                <span className="text-ink-900 font-semibold text-sm md:text-base">Total Lunar:</span>
+                <span className={`font-mono font-bold text-sm md:text-base ${totalLunar >= venitOptimNum ? 'text-sage' : 'text-clay'}`}>
+                  {totalLunar.toLocaleString()} RON
+                </span>
               </div>
             </div>
           </div>
 
           {/* Chart */}
-          <div className="flex-1 flex flex-col mt-6 md:mt-0">
-            <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">Evoluția Pensiei</h3>
-            <div className="bg-white border border-gray-200 p-3 md:p-6 rounded-lg flex-1 grid grid-cols-3 gap-3 md:gap-6 min-h-[280px]">
-              {/* Pensie de Stat Column */}
-              <div className="flex flex-col">
-                <h4 className="text-xs md:text-lg font-semibold text-blue-700 mb-2 md:mb-4 text-center leading-tight">Pensie de Stat</h4>
-                <div className="flex-1 flex flex-col justify-end min-h-[120px]">
-                  <div
-                    className="bg-blue-500 rounded-t-lg transition-all duration-500 flex items-end justify-center text-white font-bold text-xs md:text-lg px-1"
-                    style={{
-                      height: `${Math.max((pensieDeStat / Math.max(pensieDeStat, contributieSuplimentara, parseFloat(venitOptimRetragere) || 0)) * 100, 10)}%`,
-                      minHeight: '60px'
-                    }}
-                  >
-                    <span className="mb-1 md:mb-2">{pensieDeStat.toLocaleString()}</span>
+          <div className="flex-1 flex flex-col mt-6">
+            <h3 className="font-display text-xl text-ink-900 mb-4">Evoluția Pensiei</h3>
+            <div className="bg-paper border border-ink-300 p-3 md:p-6 rounded-lg flex-1 grid grid-cols-3 gap-3 md:gap-6 min-h-[280px]">
+              {bars.map((b) => (
+                <div key={b.label} className="flex flex-col">
+                  <h4 className={`text-xs md:text-base font-semibold mb-2 md:mb-4 text-center leading-tight ${b.head}`}>
+                    {b.label}
+                  </h4>
+                  <div className="flex-1 flex flex-col justify-end min-h-[120px]">
+                    <div
+                      className={`${b.bar} ${b.text} rounded-t-lg transition-all duration-500 flex items-end justify-center font-bold text-xs md:text-base px-1`}
+                      style={{ height: `${Math.max((b.value / maxBar) * 100, 10)}%`, minHeight: '60px' }}
+                    >
+                      <span className="mb-1 md:mb-2 text-center leading-tight">{b.value.toLocaleString()}</span>
+                    </div>
                   </div>
+                  <div className="text-center mt-1 md:mt-2 text-xs text-ink-500 leading-tight">RON/lună</div>
                 </div>
-                <div className="text-center mt-1 md:mt-2 text-xs text-gray-600 leading-tight">RON/lună</div>
-              </div>
-
-              {/* Contribuție Suplimentară Column */}
-              <div className="flex flex-col">
-                <h4 className="text-xs md:text-lg font-semibold text-green-700 mb-2 md:mb-4 text-center leading-tight">Contribuție Suplimentară</h4>
-                <div className="flex-1 flex flex-col justify-end min-h-[120px]">
-                  <div
-                    className="bg-green-500 rounded-t-lg transition-all duration-500 flex items-end justify-center text-white font-bold text-xs md:text-lg px-1"
-                    style={{
-                      height: `${Math.max((contributieSuplimentara / Math.max(pensieDeStat, contributieSuplimentara, parseFloat(venitOptimRetragere) || 0)) * 100, 10)}%`,
-                      minHeight: '60px'
-                    }}
-                  >
-                    <span className="mb-1 md:mb-2">{contributieSuplimentara.toLocaleString()}</span>
-                  </div>
-                </div>
-                <div className="text-center mt-1 md:mt-2 text-xs text-gray-600 leading-tight">RON/lună</div>
-              </div>
-
-              {/* Venit Optim Column */}
-              <div className="flex flex-col">
-                <h4 className="text-xs md:text-lg font-semibold text-yellow-700 mb-2 md:mb-4 text-center leading-tight">Venit Optim</h4>
-                <div className="flex-1 flex flex-col justify-end min-h-[120px]">
-                  <div
-                    className="bg-yellow-500 rounded-t-lg transition-all duration-500 flex items-end justify-center text-white font-bold text-xs md:text-lg px-1"
-                    style={{
-                      height: `${Math.max(((parseFloat(venitOptimRetragere) || 0) / Math.max(pensieDeStat, contributieSuplimentara, parseFloat(venitOptimRetragere) || 0)) * 100, 10)}%`,
-                      minHeight: '60px'
-                    }}
-                  >
-                    <span className="mb-1 md:mb-2 text-center leading-tight">{(parseFloat(venitOptimRetragere) || 0).toLocaleString()}</span>
-                  </div>
-                </div>
-                <div className="text-center mt-1 md:mt-2 text-xs text-gray-600 leading-tight">RON/lună</div>
-              </div>
+              ))}
             </div>
           </div>
         </div>

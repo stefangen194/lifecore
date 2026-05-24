@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Menu, ChevronDown, X } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Menu, ChevronDown, X, ArrowUpRight } from 'lucide-react';
 import MeetingModal from './MeetingModal';
+import { Button } from './ui';
 
 interface NavigationProps {
   isOfficeOpen: boolean;
@@ -9,18 +10,44 @@ interface NavigationProps {
   isHomePage?: boolean;
 }
 
-const Navigation: React.FC<NavigationProps> = ({
-  isOfficeOpen,
-  setIsOfficeOpen,
-  isHomePage = false,
-}) => {
+// Single source of truth for the "The Core" mega-menu links.
+const toolLinks = [
+  { to: '/buget', label: 'Buget' },
+  { to: '/dobanda-capitalizata', label: 'Dobândă capitalizată' },
+  { to: '/calculator-credite', label: 'Calculator credite' },
+  { to: '/calculator-pensie', label: 'Calculator pensie' },
+  { to: '/calculator-copil', label: 'Calculator plan copil' },
+  { to: '/inflatie-depreciere', label: 'Inflație & Depreciere' },
+];
+
+const conceptLinks = [
+  { to: '/retragere-activitate', label: 'Retragere din activitate' },
+  { to: '/plan-copil', label: 'Plan copil' },
+  { to: '/achizitie-credit', label: 'Achiziție credit și închidere anticipată' },
+  { to: '/investitii', label: 'Investiții' },
+  { to: '/sanatate', label: 'Sănătate' },
+  { to: '/protectie-bunuri', label: 'Protecție bunuri' },
+];
+
+const primaryLinks = [
+  { to: '/cine-suntem', label: 'Cine suntem' },
+  { to: '/echipa', label: 'Echipa' },
+];
+
+const trailingLinks = [
+  { to: '/out-of-office', label: 'The Lifestyle' },
+  { to: '/cariera', label: 'Carieră' },
+  { to: '/contact', label: 'Contact' },
+];
+
+const Navigation: React.FC<NavigationProps> = ({ isOfficeOpen, setIsOfficeOpen }) => {
   const navRef = useRef<HTMLDivElement>(null);
+  const { pathname } = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [isConcepteOpen, setIsConcepteOpen] = useState(false);
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
-  const officeDropdownRef = useRef<HTMLDivElement>(null);
-  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleLinkClick = () => {
     setIsOfficeOpen(false);
@@ -38,223 +65,219 @@ const Navigation: React.FC<NavigationProps> = ({
   };
 
   const handleMouseLeave = () => {
-    closeTimeoutRef.current = setTimeout(() => {
-      setIsOfficeOpen(false);
-    }, 200);
+    closeTimeoutRef.current = setTimeout(() => setIsOfficeOpen(false), 200);
   };
 
+  const linkClass = (to: string) =>
+    `px-3.5 py-2 text-sm transition-colors ${
+      pathname === to ? 'text-ink-900 font-medium' : 'text-ink-600 hover:text-ink-900'
+    }`;
 
   return (
-    <div className="sticky top-0 z-50 bg-gray-900" ref={navRef}>
-      <div className="flex items-center justify-between md:justify-center px-6 py-4 relative">
+    <div
+      className="sticky top-0 z-50 bg-paper-lo/80 backdrop-blur-md border-b border-ink-200"
+      ref={navRef}
+    >
+      <div className="container-wide flex items-center justify-between gap-6 h-[72px]">
         <Link
           to="/"
           onClick={handleLinkClick}
-          className="md:absolute md:left-6 flex items-center gap-3 hover:opacity-80 transition-opacity"
+          className="inline-flex items-center gap-2.5 text-ink-900 hover:opacity-80 transition-opacity"
         >
-          <img src="/logo.png" alt="LifeCore" className="h-10" />
-          <span className="text-[#C5A059] font-semibold text-xl">LifeCore</span>
-        </Link>
-        <nav className="hidden md:flex space-x-8">
-          <Link to="/cine-suntem" onClick={handleLinkClick} className="text-[#C5A059] hover:text-[#d4b477] transition-colors">Cine suntem</Link>
-          <Link to="/echipa" onClick={handleLinkClick} className="text-[#C5A059] hover:text-[#d4b477] transition-colors">Echipa</Link>
-          <div
-            ref={officeDropdownRef}
-            className="relative"
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
+          <span
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden"
+            style={{ backgroundColor: 'rgb(229 225 214)' }}
           >
-            <button
-              className="flex items-center space-x-1 text-[#C5A059] hover:text-[#d4b477] transition-colors"
-            >
+            <img src="/logo.png" alt="LifeCore" className="h-full w-full object-contain" />
+          </span>
+          <span className="font-display tracking-tight leading-none" style={{ fontSize: 26 }}>
+            Life<span className="italic text-gold-500">Core</span>
+          </span>
+        </Link>
+
+        {/* Desktop nav */}
+        <nav className="hidden md:flex items-center gap-1">
+          {primaryLinks.map((l) => (
+            <Link key={l.to} to={l.to} onClick={handleLinkClick} className={linkClass(l.to)}>
+              {l.label}
+            </Link>
+          ))}
+
+          {/* The Core mega-menu */}
+          <div className="relative" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+            <button className="flex items-center gap-1 px-3.5 py-2 text-sm text-ink-600 hover:text-ink-900 transition-colors">
               <span>The Core</span>
-              <ChevronDown size={16} className={`transition-transform ${isOfficeOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown size={14} className={`transition-transform ${isOfficeOpen ? 'rotate-180' : ''}`} />
             </button>
             {isOfficeOpen && (
               <div
-                className="absolute top-full left-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-20"
+                className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-[560px] bg-paper-hi border border-ink-200 rounded-xl shadow-lg p-6 grid grid-cols-2 gap-6"
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
               >
-                <div className="relative group">
-                  <button className="w-full text-left px-4 py-3 text-blue-700 hover:bg-blue-50 hover:text-blue-500 transition-colors font-medium flex items-center justify-between">
-                    Tools
-                    <ChevronDown size={14} className="transform rotate-[-90deg] group-hover:rotate-0 transition-transform" />
-                  </button>
-                  <div className="absolute left-full top-0 ml-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-30">
-                    <Link to="/buget" onClick={handleLinkClick} className="w-full text-left block px-4 py-3 text-blue-600 hover:bg-blue-50 hover:text-blue-500 transition-colors text-sm">
-                      Buget
-                    </Link>
-                    <Link to="/dobanda-capitalizata" onClick={handleLinkClick} className="w-full text-left block px-4 py-3 text-blue-600 hover:bg-blue-50 hover:text-blue-500 transition-colors text-sm">
-                      Dobândă capitalizată
-                    </Link>
-                    <Link to="/calculator-credite" onClick={handleLinkClick} className="w-full text-left block px-4 py-3 text-blue-600 hover:bg-blue-50 hover:text-blue-500 transition-colors text-sm">
-                      Calculator credite
-                    </Link>
-                    <Link to="/calculator-pensie" onClick={handleLinkClick} className="w-full text-left block px-4 py-3 text-blue-600 hover:bg-blue-50 hover:text-blue-500 transition-colors text-sm">
-                      Calculator pensie
-                    </Link>
-                    <Link to="/calculator-copil" onClick={handleLinkClick} className="w-full text-left block px-4 py-3 text-blue-600 hover:bg-blue-50 hover:text-blue-500 transition-colors text-sm">
-                      Calculator plan copil
-                    </Link>
-                    <Link to="/inflatie-depreciere" onClick={handleLinkClick} className="w-full text-left block px-4 py-3 text-blue-600 hover:bg-blue-50 hover:text-blue-500 transition-colors text-sm">
-                      Inflație & Depreciere
-                    </Link>
+                <div>
+                  <div className="eyebrow mb-3">Tools</div>
+                  <div className="flex flex-col">
+                    {toolLinks.map((l) => (
+                      <Link
+                        key={l.to}
+                        to={l.to}
+                        onClick={handleLinkClick}
+                        className="px-2 py-1.5 text-sm text-ink-700 rounded-md hover:bg-paper-lo hover:text-gold-500 transition-colors"
+                      >
+                        {l.label}
+                      </Link>
+                    ))}
                   </div>
                 </div>
-                <div className="relative group">
-                  <button className="w-full text-left px-4 py-3 text-blue-700 hover:bg-blue-50 hover:text-blue-500 transition-colors font-medium flex items-center justify-between">
-                    Concepte
-                    <ChevronDown size={14} className="transform rotate-[-90deg] group-hover:rotate-0 transition-transform" />
-                  </button>
-                  <div className="absolute left-full top-0 ml-1 w-72 bg-white border border-gray-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-30">
-                    <Link to="/retragere-activitate" onClick={handleLinkClick} className="w-full text-left block px-4 py-3 text-blue-600 hover:bg-blue-50 hover:text-blue-500 transition-colors text-sm">
-                      Retragere din activitate
-                    </Link>
-                    <Link to="/plan-copil" onClick={handleLinkClick} className="w-full text-left block px-4 py-3 text-blue-600 hover:bg-blue-50 hover:text-blue-500 transition-colors text-sm">
-                      Plan copil
-                    </Link>
-                    <Link to="/achizitie-credit" onClick={handleLinkClick} className="w-full text-left block px-4 py-3 text-blue-600 hover:bg-blue-50 hover:text-blue-500 transition-colors text-sm">
-                      Achiziție credit și închidere anticipată
-                    </Link>
-                    <Link to="/investitii" onClick={handleLinkClick} className="w-full text-left block px-4 py-3 text-blue-600 hover:bg-blue-50 hover:text-blue-500 transition-colors text-sm">
-                      Investiții
-                    </Link>
-                    <Link to="/sanatate" onClick={handleLinkClick} className="w-full text-left block px-4 py-3 text-blue-600 hover:bg-blue-50 hover:text-blue-500 transition-colors text-sm">
-                      Sănătate
-                    </Link>
-                    <Link to="/protectie-bunuri" onClick={handleLinkClick} className="w-full text-left block px-4 py-3 text-blue-600 hover:bg-blue-50 hover:text-blue-500 transition-colors text-sm">
-                      Protecție bunuri
-                    </Link>
+                <div>
+                  <div className="eyebrow mb-3">Concepte</div>
+                  <div className="flex flex-col">
+                    {conceptLinks.map((l) => (
+                      <Link
+                        key={l.to}
+                        to={l.to}
+                        onClick={handleLinkClick}
+                        className="px-2 py-1.5 text-sm text-ink-700 rounded-md hover:bg-paper-lo hover:text-gold-500 transition-colors"
+                      >
+                        {l.label}
+                      </Link>
+                    ))}
                   </div>
                 </div>
-                <Link to="/maslow" onClick={handleLinkClick} className="w-full text-left px-4 py-3 text-blue-700 hover:bg-blue-50 hover:text-blue-500 transition-colors font-medium block">
+                <Link
+                  to="/maslow"
+                  onClick={handleLinkClick}
+                  className="col-span-2 mt-1 pt-4 border-t border-ink-200 flex items-center justify-between text-sm font-medium text-ink-900 hover:text-gold-500 transition-colors"
+                >
                   Piramida Bogăției
+                  <ArrowUpRight size={16} />
                 </Link>
               </div>
             )}
           </div>
-          <Link to="/out-of-office" onClick={handleLinkClick} className="text-[#C5A059] hover:text-[#d4b477] transition-colors">The Lifestyle</Link>
-          <Link to="/cariera" onClick={handleLinkClick} className="text-[#C5A059] hover:text-[#d4b477] transition-colors">Carieră</Link>
-          <Link to="/contact" onClick={handleLinkClick} className="text-[#C5A059] hover:text-[#d4b477] transition-colors">Contact</Link>
+
+          {trailingLinks.map((l) => (
+            <Link key={l.to} to={l.to} onClick={handleLinkClick} className={linkClass(l.to)}>
+              {l.label}
+            </Link>
+          ))}
         </nav>
+
+        <div className="hidden md:block">
+          <Button variant="gold" size="sm" onClick={() => setIsMeetingModalOpen(true)}>
+            Cunoaște-ne
+            <ArrowUpRight size={14} />
+          </Button>
+        </div>
+
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="md:hidden text-[#C5A059]"
+          className="md:hidden text-ink-900"
+          aria-label="Meniu"
         >
           {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
-        <div className="absolute right-6 hidden md:block">
-          <button
-            onClick={() => setIsMeetingModalOpen(true)}
-            className="bg-[#C5A059] text-gray-900 px-6 py-2 rounded-lg hover:bg-[#d4b477] transition-colors font-medium"
-          >
-            Cunoaște-ne
-          </button>
-        </div>
       </div>
 
+      {/* Mobile menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-gray-800 border-t border-gray-700">
-          <div className="px-6 py-4 space-y-2">
-            <Link to="/cine-suntem" onClick={handleLinkClick} className="w-full text-left text-[#C5A059] hover:text-[#d4b477] transition-colors py-2 block">Cine suntem</Link>
-            <Link to="/echipa" onClick={handleLinkClick} className="w-full text-left text-[#C5A059] hover:text-[#d4b477] transition-colors py-2 block">Echipa</Link>
-            <div className="border-t border-gray-700 pt-2">
+        <div className="md:hidden bg-paper-hi border-t border-ink-200">
+          <div className="px-6 py-4 space-y-1">
+            {primaryLinks.map((l) => (
+              <Link
+                key={l.to}
+                to={l.to}
+                onClick={handleLinkClick}
+                className="block py-2 text-ink-800 hover:text-gold-500 transition-colors"
+              >
+                {l.label}
+              </Link>
+            ))}
+
+            <div className="border-t border-ink-200 pt-2">
               <button
-                className="w-full flex items-center justify-between text-[#C5A059] hover:text-[#d4b477] transition-colors py-2"
-                onClick={() => {
-                  setIsOfficeOpen(!isOfficeOpen);
-                }}
+                className="w-full flex items-center justify-between py-2 text-ink-800 hover:text-gold-500 transition-colors"
+                onClick={() => setIsOfficeOpen(!isOfficeOpen)}
               >
                 <span>The Core</span>
                 <ChevronDown size={16} className={`transition-transform ${isOfficeOpen ? 'rotate-180' : ''}`} />
               </button>
               {isOfficeOpen && (
-                <div className="pl-4 space-y-2 mt-2">
+                <div className="pl-4 space-y-1 mt-1">
                   <button
-                    className="w-full flex items-center justify-between text-[#C5A059] font-medium py-2"
+                    className="w-full flex items-center justify-between py-2 text-gold-500 font-medium"
                     onClick={() => setIsToolsOpen(!isToolsOpen)}
                   >
                     <span>Tools</span>
                     <ChevronDown size={16} className={`transition-transform ${isToolsOpen ? 'rotate-180' : ''}`} />
                   </button>
-                  {isToolsOpen && (
-                    <div className="space-y-2">
-                      <Link to="/buget" onClick={handleLinkClick} className="w-full text-left text-gray-300 hover:text-white transition-colors py-2 pl-4 block">
-                        Buget
+                  {isToolsOpen &&
+                    toolLinks.map((l) => (
+                      <Link
+                        key={l.to}
+                        to={l.to}
+                        onClick={handleLinkClick}
+                        className="block py-2 pl-4 text-sm text-ink-600 hover:text-ink-900 transition-colors"
+                      >
+                        {l.label}
                       </Link>
-                      <Link to="/dobanda-capitalizata" onClick={handleLinkClick} className="w-full text-left text-gray-300 hover:text-white transition-colors py-2 pl-4 block">
-                        Dobândă capitalizată
-                      </Link>
-                      <Link to="/calculator-credite" onClick={handleLinkClick} className="w-full text-left text-gray-300 hover:text-white transition-colors py-2 pl-4 block">
-                        Calculator credite
-                      </Link>
-                      <Link to="/calculator-pensie" onClick={handleLinkClick} className="w-full text-left text-gray-300 hover:text-white transition-colors py-2 pl-4 block">
-                        Calculator pensie
-                      </Link>
-                      <Link to="/calculator-copil" onClick={handleLinkClick} className="w-full text-left text-gray-300 hover:text-white transition-colors py-2 pl-4 block">
-                        Calculator plan copil
-                      </Link>
-                      <Link to="/inflatie-depreciere" onClick={handleLinkClick} className="w-full text-left text-gray-300 hover:text-white transition-colors py-2 pl-4 block">
-                        Inflație & Depreciere
-                      </Link>
-                    </div>
-                  )}
+                    ))}
                   <button
-                    className="w-full flex items-center justify-between text-[#C5A059] font-medium py-2 mt-2"
+                    className="w-full flex items-center justify-between py-2 mt-1 text-gold-500 font-medium"
                     onClick={() => setIsConcepteOpen(!isConcepteOpen)}
                   >
                     <span>Concepte</span>
                     <ChevronDown size={16} className={`transition-transform ${isConcepteOpen ? 'rotate-180' : ''}`} />
                   </button>
-                  {isConcepteOpen && (
-                    <div className="space-y-2">
-                      <Link to="/retragere-activitate" onClick={handleLinkClick} className="w-full text-left text-gray-300 hover:text-white transition-colors py-2 pl-4 block">
-                        Retragere din activitate
+                  {isConcepteOpen &&
+                    conceptLinks.map((l) => (
+                      <Link
+                        key={l.to}
+                        to={l.to}
+                        onClick={handleLinkClick}
+                        className="block py-2 pl-4 text-sm text-ink-600 hover:text-ink-900 transition-colors"
+                      >
+                        {l.label}
                       </Link>
-                      <Link to="/plan-copil" onClick={handleLinkClick} className="w-full text-left text-gray-300 hover:text-white transition-colors py-2 pl-4 block">
-                        Plan copil
-                      </Link>
-                      <Link to="/achizitie-credit" onClick={handleLinkClick} className="w-full text-left text-gray-300 hover:text-white transition-colors py-2 pl-4 block">
-                        Achiziție credit și închidere anticipată
-                      </Link>
-                      <Link to="/investitii" onClick={handleLinkClick} className="w-full text-left text-gray-300 hover:text-white transition-colors py-2 pl-4 block">
-                        Investiții
-                      </Link>
-                      <Link to="/sanatate" onClick={handleLinkClick} className="w-full text-left text-gray-300 hover:text-white transition-colors py-2 pl-4 block">
-                        Sănătate
-                      </Link>
-                      <Link to="/protectie-bunuri" onClick={handleLinkClick} className="w-full text-left text-gray-300 hover:text-white transition-colors py-2 pl-4 block">
-                        Protecție bunuri
-                      </Link>
-                    </div>
-                  )}
-                  <Link to="/maslow" onClick={handleLinkClick} className="w-full text-left text-[#C5A059] font-medium py-2 block">
+                    ))}
+                  <Link
+                    to="/maslow"
+                    onClick={handleLinkClick}
+                    className="block py-2 mt-1 text-gold-500 font-medium"
+                  >
                     Piramida Bogăției
                   </Link>
                 </div>
               )}
             </div>
-            <Link to="/out-of-office" onClick={handleLinkClick} className="w-full text-left text-[#C5A059] hover:text-[#d4b477] transition-colors py-2 block">The Lifestyle</Link>
-            <Link to="/cariera" onClick={handleLinkClick} className="w-full text-left text-[#C5A059] hover:text-[#d4b477] transition-colors py-2 block">Carieră</Link>
-            <Link to="/contact" onClick={handleLinkClick} className="w-full text-left text-[#C5A059] hover:text-[#d4b477] transition-colors py-2 block">Contact</Link>
-            <button
+
+            {trailingLinks.map((l) => (
+              <Link
+                key={l.to}
+                to={l.to}
+                onClick={handleLinkClick}
+                className="block py-2 text-ink-800 hover:text-gold-500 transition-colors"
+              >
+                {l.label}
+              </Link>
+            ))}
+
+            <Button
+              variant="gold"
+              className="w-full justify-center mt-4"
               onClick={() => {
                 setIsMeetingModalOpen(true);
                 setIsMobileMenuOpen(false);
               }}
-              className="w-full bg-[#C5A059] text-gray-900 px-6 py-2 rounded-lg hover:bg-[#d4b477] transition-colors font-medium mt-4 block text-center"
             >
               Cunoaște-ne
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
-      <MeetingModal
-        isOpen={isMeetingModalOpen}
-        onClose={() => setIsMeetingModalOpen(false)}
-      />
+      <MeetingModal isOpen={isMeetingModalOpen} onClose={() => setIsMeetingModalOpen(false)} />
     </div>
   );
 };

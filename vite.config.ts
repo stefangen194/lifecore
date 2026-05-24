@@ -7,4 +7,8 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  // Strip console.*/debugger from production bundles (dev keeps them).
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
 });

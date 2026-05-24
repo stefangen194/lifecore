@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { Volume2, VolumeX } from 'lucide-react';
 import Navigation from './components/Navigation';
 import Footer from './components/Footer';
+import Home from './components/Home';
+import NotFound from './components/NotFound';
 import CookieBanner from './components/CookieBanner';
+import ThirdPartyScripts from './components/ThirdPartyScripts';
 import Breadcrumbs from './components/Breadcrumbs';
 import LocalBusinessSchema from './components/seo/LocalBusinessSchema';
 import CineSuntem from './components/CineSuntem';
@@ -45,45 +47,6 @@ function ScrollToTop() {
   return null;
 }
 
-function HomePage() {
-  const [isMuted, setIsMuted] = useState(true);
-
-  useEffect(() => {
-    document.documentElement.style.overflow = 'hidden';
-    return () => {
-      document.documentElement.style.overflow = '';
-    };
-  }, []);
-
-  const toggleMute = () => {
-    setIsMuted(!isMuted);
-  };
-
-  return (
-    <div className="relative flex-1 w-full bg-black overflow-hidden">
-      <video
-        className="absolute inset-0 w-full h-full object-cover"
-        autoPlay
-        muted={isMuted}
-        loop
-        playsInline
-        preload="auto"
-      >
-        <source src="https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDH8nSK3RSI7VJzYR3jMQgn8cNyqbm5kur2flD" type="video/mp4" />
-        Your browser does not support the video tag.
-      </video>
-
-      <button
-        onClick={toggleMute}
-        className="absolute top-6 right-6 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition-all duration-200 backdrop-blur-sm z-20"
-        aria-label={isMuted ? "Unmute video" : "Mute video"}
-      >
-        {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-      </button>
-    </div>
-  );
-}
-
 function PageLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
@@ -95,17 +58,16 @@ function PageLayout({ children }: { children: React.ReactNode }) {
 
 function AppContent() {
   const [isOfficeOpen, setIsOfficeOpen] = useState(false);
-  const location = useLocation();
-  const isHomePage = location.pathname === '/';
 
   return (
-    <div className={isHomePage ? 'h-screen flex flex-col overflow-hidden' : ''}>
+    <div>
       <LocalBusinessSchema />
       <ScrollToTop />
-      <Navigation isOfficeOpen={isOfficeOpen} setIsOfficeOpen={setIsOfficeOpen} isHomePage={isHomePage} />
+      <Navigation isOfficeOpen={isOfficeOpen} setIsOfficeOpen={setIsOfficeOpen} />
       <CookieBanner />
+      <ThirdPartyScripts />
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<PageLayout><Home /><Footer /></PageLayout>} />
         <Route path="/cine-suntem" element={<PageLayout><CineSuntem /><Footer /></PageLayout>} />
         <Route path="/contact" element={<PageLayout><Contact /><Footer /></PageLayout>} />
         <Route path="/concepte" element={<PageLayout><Concepte /><Footer /></PageLayout>} />
@@ -125,6 +87,7 @@ function AppContent() {
         <Route path="/investitii" element={<PageLayout><Investitii /><Footer /></PageLayout>} />
         <Route path="/sanatate" element={<PageLayout><Sanatate /><Footer /></PageLayout>} />
         <Route path="/protectie-bunuri" element={<PageLayout><ProtectieBunuri /><Footer /></PageLayout>} />
+        <Route path="*" element={<PageLayout><NotFound /><Footer /></PageLayout>} />
       </Routes>
     </div>
   );

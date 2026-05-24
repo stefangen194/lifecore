@@ -1,43 +1,75 @@
 import React from 'react';
-import { Calculator, PiggyBank, DollarSign, Target, CreditCard, Trash2 } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { Trash2 } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { InputField, SelectField, Button, chartColors, chartTooltipStyle } from '../ui';
+
+const MONTHS = [
+  'Ianuarie', 'Februarie', 'Martie', 'Aprilie', 'Mai', 'Iunie',
+  'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie',
+];
+
+const EXPENSE_CATEGORIES = [
+  'Selectează categoria', 'Chirie / Rată locuință', 'Utilități (energie, apă, gaz)',
+  'Alimente / Supermarket', 'Mâncat în oraș / Coffee / Ieșiri', 'Transport (abonamente)',
+  'Carburant', 'Îngrijire personală', 'Sănătate (medicamente / analize)', 'Asigurări',
+  'Datorii / Rate', 'Educație / Cursuri', 'Îngrijire copil / Grădiniță / Școală',
+  'Divertisment', 'Abonamente (telefon, internet, Netflix etc)', 'Îmbrăcăminte / Încălțăminte',
+  'Cadouri / Donații', 'Vacanțe / Călătorii', 'Animale de companie', 'Taxe / Comisioane',
+  'Investiții', 'Economii', 'Altele...',
+];
+
+// On-brand chart palette (golds, sage, clay, ink-blue, neutrals).
+const COLORS = ['#C5A059', '#D4B477', '#8A6F3A', '#6E8A6A', '#A66654', '#3B4654', '#A8A398', '#E2CCA2', '#56524A', '#78746A'];
+
+type Expense = { amount: number; category: string };
+
+// localStorage is attacker-writable — validate shape before trusting it.
+// Anything malformed is discarded rather than fed into state/chart/PDF.
+function sanitizeBudgetData(raw: unknown): { income: string; expenses: Expense[] } {
+  if (typeof raw !== 'object' || raw === null) return { income: '', expenses: [] };
+  const data = raw as Record<string, unknown>;
+  const income = typeof data.totalMonthlyIncome === 'string' ? data.totalMonthlyIncome : '';
+  const expenses = Array.isArray(data.expenses)
+    ? data.expenses.filter(
+        (e): e is Expense =>
+          typeof e === 'object' && e !== null &&
+          typeof (e as Expense).amount === 'number' && Number.isFinite((e as Expense).amount) &&
+          typeof (e as Expense).category === 'string',
+      )
+    : [];
+  return { income, expenses };
+}
 
 const BugetCalculator: React.FC = () => {
-  // Calculator state
-  const [selectedYear, setSelectedYear] = React.useState(() => {
-    return new Date().getFullYear().toString();
-  });
-  const [selectedMonth, setSelectedMonth] = React.useState(() => {
-    const months = ['Ianuarie', 'Februarie', 'Martie', 'Aprilie', 'Mai', 'Iunie', 
-                   'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie'];
-    return months[new Date().getMonth()];
-  });
+  const [selectedYear, setSelectedYear] = React.useState(() => new Date().getFullYear().toString());
+  const [selectedMonth, setSelectedMonth] = React.useState(() => MONTHS[new Date().getMonth()]);
   const [totalMonthlyIncome, setTotalMonthlyIncome] = React.useState('');
   const [currentExpenseAmount, setCurrentExpenseAmount] = React.useState('');
   const [currentExpenseCategory, setCurrentExpenseCategory] = React.useState('');
-  const [expenses, setExpenses] = React.useState<Array<{amount: number, category: string}>>([]);
+  const [expenses, setExpenses] = React.useState<Array<{ amount: number; category: string }>>([]);
   const [showResetConfirmation, setShowResetConfirmation] = React.useState(false);
 
-  // Generate storage key based on selected period
   const getStorageKey = () => `budget_${selectedYear}_${selectedMonth}`;
 
   // Load data from localStorage when component mounts or period changes
   React.useEffect(() => {
     const storageKey = getStorageKey();
     const savedData = localStorage.getItem(storageKey);
-    
+
     if (savedData) {
       try {
-        const parsedData = JSON.parse(savedData);
-        setTotalMonthlyIncome(parsedData.totalMonthlyIncome || '');
-        setExpenses(parsedData.expenses || []);
+        const parsedData: unknown = JSON.parse(savedData);
+        const { income, expenses } = sanitizeBudgetData(parsedData);
+        setTotalMonthlyIncome(income);
+        setExpenses(expenses);
       } catch (error) {
-        console.error('Error loading saved budget data:', error);
+        if (import.meta.env.DEV) console.error('Error loading saved budget data:', error);
+        setTotalMonthlyIncome('');
+        setExpenses([]);
       }
     } else {
-      // Clear data when switching to a period with no saved data
       setTotalMonthlyIncome('');
       setExpenses([]);
     }
@@ -46,16 +78,11 @@ const BugetCalculator: React.FC = () => {
   // Save data to localStorage whenever income or expenses change
   React.useEffect(() => {
     const storageKey = getStorageKey();
-    const dataToSave = {
-      totalMonthlyIncome,
-      expenses
-    };
-    
-    // Only save if there's actual data to save
+    const dataToSave = { totalMonthlyIncome, expenses };
+
     if (totalMonthlyIncome || expenses.length > 0) {
       localStorage.setItem(storageKey, JSON.stringify(dataToSave));
     } else {
-      // Remove from storage if no data
       localStorage.removeItem(storageKey);
     }
   }, [totalMonthlyIncome, expenses, selectedYear, selectedMonth]);
@@ -63,39 +90,26 @@ const BugetCalculator: React.FC = () => {
   // Calculate totals
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const balance = (parseFloat(totalMonthlyIncome) || 0) - totalExpenses;
-  const budgetUtilizationPercentage = totalMonthlyIncome ? Math.round((totalExpenses / parseFloat(totalMonthlyIncome)) * 100) : 0;
+  const budgetUtilizationPercentage = totalMonthlyIncome
+    ? Math.round((totalExpenses / parseFloat(totalMonthlyIncome)) * 100)
+    : 0;
 
-  // Colors for pie chart
-  const COLORS = [
-    '#3B82F6', // blue-500
-    '#10B981', // emerald-500
-    '#F59E0B', // amber-500
-    '#EF4444', // red-500
-    '#8B5CF6', // violet-500
-    '#06B6D4', // cyan-500
-    '#84CC16', // lime-500
-    '#F97316', // orange-500
-    '#EC4899', // pink-500
-    '#6B7280'  // gray-500
-  ];
-
-  // Prepare data for pie chart
   const getPieChartData = () => {
     const categoryTotals: { [key: string]: number } = {};
-    expenses.forEach(expense => {
+    expenses.forEach((expense) => {
       categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + expense.amount;
     });
-    
+
     return Object.entries(categoryTotals).map(([category, amount]) => ({
       name: category,
       value: amount,
-      percentage: totalExpenses > 0 ? Math.round((amount / totalExpenses) * 100) : 0
+      percentage: totalExpenses > 0 ? Math.round((amount / totalExpenses) * 100) : 0,
     }));
   };
 
   const pieChartData = getPieChartData();
 
-  // Handle PDF export
+  // Handle PDF export — export against the dark surface so light text stays legible
   const handleExportPdf = async () => {
     const element = document.getElementById('budget-calculator-content');
     if (!element) return;
@@ -104,13 +118,13 @@ const BugetCalculator: React.FC = () => {
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff'
+        allowTaint: false,
+        backgroundColor: '#161617',
       });
 
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
-      
+
       const imgWidth = 210;
       const pageHeight = 295;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
@@ -129,207 +143,127 @@ const BugetCalculator: React.FC = () => {
 
       pdf.save(`Buget_${selectedMonth}_${selectedYear}.pdf`);
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      if (import.meta.env.DEV) console.error('Error generating PDF:', error);
       alert('A apărut o eroare la generarea PDF-ului. Vă rugăm să încercați din nou.');
     }
   };
 
-  // Handle adding expense
   const handleAddExpense = () => {
     if (currentExpenseAmount && currentExpenseCategory && parseFloat(currentExpenseAmount) > 0) {
-      const newExpense = {
-        amount: parseFloat(currentExpenseAmount),
-        category: currentExpenseCategory
-      };
+      const newExpense = { amount: parseFloat(currentExpenseAmount), category: currentExpenseCategory };
       setExpenses([...expenses, newExpense]);
       setCurrentExpenseAmount('');
       setCurrentExpenseCategory('');
     }
   };
 
-  // Handle deleting individual expense
   const handleDeleteExpense = (indexToDelete: number) => {
-    const updatedExpenses = expenses.filter((_, index) => index !== indexToDelete);
-    setExpenses(updatedExpenses);
+    setExpenses(expenses.filter((_, index) => index !== indexToDelete));
   };
 
-  // Handle reset
   const handleReset = () => {
     setShowResetConfirmation(false);
     const storageKey = getStorageKey();
     localStorage.removeItem(storageKey);
-    
+
     setSelectedYear(new Date().getFullYear().toString());
-    setSelectedMonth(() => {
-      const months = ['Ianuarie', 'Februarie', 'Martie', 'Aprilie', 'Mai', 'Iunie', 
-                     'Iulie', 'August', 'Septembrie', 'Octombrie', 'Noiembrie', 'Decembrie'];
-      return months[new Date().getMonth()];
-    });
+    setSelectedMonth(MONTHS[new Date().getMonth()]);
     setTotalMonthlyIncome('');
     setCurrentExpenseAmount('');
     setCurrentExpenseCategory('');
     setExpenses([]);
   };
 
-  // Get top categories by spending
   const getTopCategories = () => {
     const categoryTotals: { [key: string]: number } = {};
-    expenses.forEach(expense => {
+    expenses.forEach((expense) => {
       categoryTotals[expense.category] = (categoryTotals[expense.category] || 0) + expense.amount;
     });
     return Object.entries(categoryTotals)
-      .sort(([,a], [,b]) => b - a)
+      .sort(([, a], [, b]) => b - a)
       .slice(0, 5);
   };
 
+  const progressColor =
+    budgetUtilizationPercentage > 100 ? 'bg-clay' : budgetUtilizationPercentage > 80 ? 'bg-gold-400' : 'bg-gold-500';
+
   return (
-    <div id="budget-calculator-content" className="bg-white p-4 md:p-8 rounded-lg shadow-lg max-w-6xl mx-auto mb-8">
+    <div id="budget-calculator-content" className="bg-paper-hi border border-ink-300 p-4 md:p-8 rounded-lg shadow-lg max-w-6xl mx-auto mb-8">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Left Column */}
         <div>
-          <h2 className="text-xl md:text-2xl font-semibold text-gray-900 mb-2">Buget personal</h2>
-          <p className="text-sm md:text-base text-gray-600 mb-6">Setează perioada (lună), introdu venitul și cheltuielile. Datele se salvează local pe fiecare lună.</p>
+          <h2 className="font-display text-2xl md:text-3xl text-ink-900 mb-2">Buget personal</h2>
+          <p className="text-sm md:text-base text-ink-600 mb-6">
+            Setează perioada (lună), introdu venitul și cheltuielile. Datele se salvează local pe fiecare lună.
+          </p>
 
           {/* Period and Income */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Perioada
-              </label>
+              <label className="block text-sm font-medium text-ink-700 mb-2">Perioada</label>
               <div className="grid grid-cols-2 gap-2">
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  className="w-full px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white text-sm"
-                  style={{ height: '70px', lineHeight: '70px', padding: '0 12px' }}
-                >
-                  <option>{new Date().getFullYear()}</option>
-                </select>
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="w-full px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white text-sm"
-                  style={{ height: '70px', lineHeight: '70px', padding: '0 12px' }}
-                >
-                  <option>Ianuarie</option>
-                  <option>Februarie</option>
-                  <option>Martie</option>
-                  <option>Aprilie</option>
-                  <option>Mai</option>
-                  <option>Iunie</option>
-                  <option>Iulie</option>
-                  <option>August</option>
-                  <option>Septembrie</option>
-                  <option>Octombrie</option>
-                  <option>Noiembrie</option>
-                  <option>Decembrie</option>
-                </select>
+                <SelectField value={selectedYear} onChange={setSelectedYear} options={[{ value: selectedYear, label: selectedYear }]} />
+                <SelectField value={selectedMonth} onChange={setSelectedMonth} options={MONTHS.map((m) => ({ value: m, label: m }))} />
               </div>
+              <p className="mt-1.5 text-xs leading-relaxed text-ink-500">Anul și luna pentru care înregistrezi bugetul. Fiecare lună se salvează separat.</p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Venit lunar total (RON)
-              </label>
-              <input
-                type="number"
-                value={totalMonthlyIncome}
-                onChange={(e) => setTotalMonthlyIncome(e.target.value)}
-                className="w-full px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                style={{ height: '70px', lineHeight: '70px', padding: '0 12px' }}
-                placeholder="10000"
-              />
-            </div>
+            <InputField
+              label="Venit lunar total (RON)"
+              hint="Toate veniturile nete care îți intră într-o lună: salariu, chirii, freelancing, dividende etc."
+              type="number"
+              value={totalMonthlyIncome}
+              onChange={setTotalMonthlyIncome}
+              placeholder="10000"
+            />
           </div>
 
           {/* Add Expense */}
-          <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Adaugă cheltuială</h3>
+          <h3 className="font-display text-lg text-ink-900 mb-4">Adaugă cheltuială</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Sumă (RON)
-              </label>
-              <input
-                type="number"
-                value={currentExpenseAmount}
-                onChange={(e) => setCurrentExpenseAmount(e.target.value)}
-                className="w-full px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                style={{ height: '70px', lineHeight: '70px', padding: '0 12px' }}
-                placeholder="0"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Categorie
-              </label>
-              <select
-                value={currentExpenseCategory}
-                onChange={(e) => setCurrentExpenseCategory(e.target.value)}
-                className="w-full px-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white text-sm"
-                style={{ height: '70px', lineHeight: '70px', padding: '0 12px' }}
-              >
-                <option>Selectează categoria</option>
-                <option>Chirie / Rată locuință</option>
-                <option>Utilități (energie, apă, gaz)</option>
-                <option>Alimente / Supermarket</option>
-                <option>Mâncat în oraș / Coffee / Ieșiri</option>
-                <option>Transport (abonamente)</option>
-                <option>Carburant</option>
-                <option>Îngrijire personală</option>
-                <option>Sănătate (medicamente / analize)</option>
-                <option>Asigurări</option>
-                <option>Datorii / Rate</option>
-                <option>Educație / Cursuri</option>
-                <option>Îngrijire copil / Grădiniță / Școală</option>
-                <option>Divertisment</option>
-                <option>Abonamente (telefon, internet, Netflix etc)</option>
-                <option>Îmbrăcăminte / Încălțăminte</option>
-                <option>Cadouri / Donații</option>
-                <option>Vacanțe / Călătorii</option>
-                <option>Animale de companie</option>
-                <option>Taxe / Comisioane</option>
-                <option>Investiții</option>
-                <option>Economii</option>
-                <option>Altele...</option>
-              </select>
-            </div>
+            <InputField
+              label="Sumă (RON)"
+              hint="Cât ai cheltuit pentru această categorie în luna selectată."
+              type="number"
+              value={currentExpenseAmount}
+              onChange={setCurrentExpenseAmount}
+              placeholder="0"
+            />
+            <SelectField
+              label="Categorie"
+              hint="Tipul cheltuielii, ca să vezi pe ce se duc cei mai mulți bani."
+              value={currentExpenseCategory}
+              onChange={setCurrentExpenseCategory}
+              options={EXPENSE_CATEGORIES.map((c) => ({ value: c, label: c }))}
+            />
           </div>
 
           {/* Buttons */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-            <button
-              onClick={handleAddExpense}
-              className="bg-blue-700 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm"
-            >
+            <Button variant="gold" onClick={handleAddExpense} className="justify-center">
               Adaugă cheltuială
-            </button>
-            <button
-              onClick={() => setShowResetConfirmation(true)}
-              className="bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors font-medium text-sm"
-            >
+            </Button>
+            <Button variant="ghost" onClick={() => setShowResetConfirmation(true)} className="justify-center">
               Resetare
-            </button>
-            <button
-              onClick={handleExportPdf}
-              className="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium text-sm"
-            >
+            </Button>
+            <Button variant="primary" onClick={handleExportPdf} className="justify-center">
               Exportă PDF
-            </button>
+            </Button>
           </div>
 
           {/* Expenses List */}
-          <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Cheltuieli</h3>
-          <div className="bg-gray-50 p-4 rounded-lg min-h-[200px]">
+          <h3 className="font-display text-lg text-ink-900 mb-4">Cheltuieli</h3>
+          <div className="bg-paper border border-ink-300 p-4 rounded-lg min-h-[200px]">
             {expenses.length === 0 ? (
-              <p className="text-gray-500 text-center py-8 text-sm">Nu există cheltuieli adăugate pentru această perioadă</p>
+              <p className="text-ink-500 text-center py-8 text-sm">Nu există cheltuieli adăugate pentru această perioadă</p>
             ) : (
               <div className="space-y-2">
                 {expenses.map((expense, index) => (
-                  <div key={index} className="flex justify-between items-center p-3 bg-white rounded-lg border">
-                    <span className="text-gray-700 flex-1 text-sm mr-2">{expense.category}</span>
-                    <span className="font-medium text-gray-900 mr-3 text-sm whitespace-nowrap">{expense.amount} RON</span>
+                  <div key={index} className="flex justify-between items-center p-3 bg-paper-hi rounded-lg border border-ink-300">
+                    <span className="text-ink-700 flex-1 text-sm mr-2">{expense.category}</span>
+                    <span className="font-mono text-ink-900 mr-3 text-sm whitespace-nowrap">{expense.amount} RON</span>
                     <button
                       onClick={() => handleDeleteExpense(index)}
-                      className="text-red-500 hover:text-red-700 transition-colors p-1 flex-shrink-0"
+                      className="text-clay hover:opacity-70 transition-opacity p-1 flex-shrink-0"
                       aria-label="Șterge cheltuiala"
                     >
                       <Trash2 size={16} />
@@ -340,25 +274,27 @@ const BugetCalculator: React.FC = () => {
             )}
           </div>
         </div>
-        
+
         {/* Right Column */}
         <div>
-          <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">Sumar - {selectedMonth} {selectedYear}</h3>
+          <h3 className="font-display text-xl text-ink-900 mb-4">
+            Sumar — {selectedMonth} {selectedYear}
+          </h3>
 
           {/* Summary */}
-          <div className="bg-gray-50 p-4 md:p-6 rounded-lg mb-6">
+          <div className="bg-paper border border-ink-300 p-4 md:p-6 rounded-lg mb-6">
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-gray-600 text-sm md:text-base">Venit:</span>
-                <span className="font-medium text-green-600 text-sm md:text-base">{totalMonthlyIncome || 0} RON</span>
+                <span className="text-ink-600 text-sm md:text-base">Venit:</span>
+                <span className="font-mono text-sage text-sm md:text-base">{totalMonthlyIncome || 0} RON</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600 text-sm md:text-base">Cheltuieli:</span>
-                <span className="font-medium text-red-600 text-sm md:text-base">{totalExpenses} RON</span>
+                <span className="text-ink-600 text-sm md:text-base">Cheltuieli:</span>
+                <span className="font-mono text-clay text-sm md:text-base">{totalExpenses} RON</span>
               </div>
-              <div className="border-t pt-3 flex justify-between">
-                <span className="text-gray-900 font-semibold text-sm md:text-base">Balanță:</span>
-                <span className={`font-bold text-sm md:text-base ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{balance} RON</span>
+              <div className="border-t border-ink-300 pt-3 flex justify-between">
+                <span className="text-ink-900 font-semibold text-sm md:text-base">Balanță:</span>
+                <span className={`font-mono font-bold text-sm md:text-base ${balance >= 0 ? 'text-sage' : 'text-clay'}`}>{balance} RON</span>
               </div>
             </div>
           </div>
@@ -366,49 +302,39 @@ const BugetCalculator: React.FC = () => {
           {/* Progress Bar */}
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-gray-700">Buget utilizat</span>
-              <span className="text-sm text-gray-500">{budgetUtilizationPercentage}%</span>
+              <span className="text-sm font-medium text-ink-700">Buget utilizat</span>
+              <span className="text-sm text-ink-500">{budgetUtilizationPercentage}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div
-                className={`h-3 rounded-full ${budgetUtilizationPercentage > 100 ? 'bg-red-500' : budgetUtilizationPercentage > 80 ? 'bg-yellow-500' : 'bg-blue-600'}`}
-                style={{ width: `${Math.min(budgetUtilizationPercentage, 100)}%` }}
-              ></div>
+            <div className="w-full bg-ink-200 rounded-full h-3">
+              <div className={`h-3 rounded-full ${progressColor}`} style={{ width: `${Math.min(budgetUtilizationPercentage, 100)}%` }} />
             </div>
           </div>
 
-          {/* Pie Chart Placeholder */}
+          {/* Pie Chart */}
           <div className="mb-6">
-            <h4 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Distribuția cheltuielilor</h4>
-            <div className="bg-gray-100 rounded-lg h-64">
+            <h4 className="font-display text-lg text-ink-900 mb-4">Distribuția cheltuielilor</h4>
+            <div className="bg-paper border border-ink-300 rounded-lg h-64">
               {expenses.length === 0 ? (
                 <div className="h-full flex items-center justify-center">
                   <div className="text-center">
-                    <div className="w-32 h-32 bg-gray-300 rounded-full mx-auto mb-4 flex items-center justify-center">
-                      <span className="text-gray-500 text-sm">Grafic circular</span>
+                    <div className="w-32 h-32 bg-paper-lo border border-ink-300 rounded-full mx-auto mb-4 flex items-center justify-center">
+                      <span className="text-ink-500 text-sm">Grafic circular</span>
                     </div>
-                    <p className="text-gray-500 text-sm">Nu există date pentru afișare</p>
+                    <p className="text-ink-500 text-sm">Nu există date pentru afișare</p>
                   </div>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie
-                      data={pieChartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={40}
-                      outerRadius={80}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      {pieChartData.map((entry, index) => (
+                    <Pie data={pieChartData} cx="50%" cy="50%" innerRadius={40} outerRadius={80} paddingAngle={2} dataKey="value">
+                      {pieChartData.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value: number) => [`${value} RON`, 'Sumă']}
-                      labelFormatter={(label: string) => `Categorie: ${label}`}
+                      contentStyle={chartTooltipStyle}
+                      itemStyle={{ color: chartColors.ink }}
+                      formatter={(value, _name, item) => [`${value} RON`, item?.payload?.name ?? 'Sumă']}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -418,24 +344,23 @@ const BugetCalculator: React.FC = () => {
 
           {/* Top Categories */}
           <div>
-            <h4 className="text-base md:text-lg font-semibold text-gray-900 mb-4">Top categorii după cheltuieli</h4>
+            <h4 className="font-display text-lg text-ink-900 mb-4">Top categorii după cheltuieli</h4>
             <div className="space-y-3">
               {getTopCategories().length === 0 ? (
-                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600 text-sm">Nu există date</span>
-                  <span className="font-medium text-sm">0 RON</span>
+                <div className="flex justify-between items-center p-3 bg-paper border border-ink-300 rounded-lg">
+                  <span className="text-ink-600 text-sm">Nu există date</span>
+                  <span className="font-mono text-sm text-ink-900">0 RON</span>
                 </div>
               ) : (
                 getTopCategories().map(([category, amount], index) => (
-                  <div key={index} className="flex flex-col md:flex-row md:justify-between md:items-center p-3 bg-gray-50 rounded-lg gap-2">
+                  <div key={index} className="flex flex-col md:flex-row md:justify-between md:items-center p-3 bg-paper border border-ink-300 rounded-lg gap-2">
                     <div className="flex items-center">
-                      <div
-                        className="w-3 h-3 rounded-full mr-3 flex-shrink-0"
-                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                      ></div>
-                      <span className="text-gray-600 text-sm">{category}</span>
+                      <div className="w-3 h-3 rounded-full mr-3 flex-shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                      <span className="text-ink-600 text-sm">{category}</span>
                     </div>
-                    <span className="font-medium text-sm ml-6 md:ml-0">{amount} RON ({totalExpenses > 0 ? Math.round((amount / totalExpenses) * 100) : 0}%)</span>
+                    <span className="font-mono text-sm ml-6 md:ml-0 text-ink-900">
+                      {amount} RON ({totalExpenses > 0 ? Math.round((amount / totalExpenses) * 100) : 0}%)
+                    </span>
                   </div>
                 ))
               )}
@@ -446,24 +371,16 @@ const BugetCalculator: React.FC = () => {
 
       {/* Reset Confirmation Modal */}
       {showResetConfirmation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Ești sigur că vrei să ștergi TOATĂ luna curentă?
-            </h3>
-            <div className="flex space-x-4">
-              <button
-                onClick={handleReset}
-                className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors font-medium"
-              >
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-paper-hi border border-ink-300 p-6 rounded-xl shadow-lg max-w-md w-full mx-4">
+            <h3 className="font-display text-xl text-ink-900 mb-4">Ești sigur că vrei să ștergi TOATĂ luna curentă?</h3>
+            <div className="flex gap-4">
+              <button onClick={handleReset} className="flex-1 bg-clay text-paper py-2.5 px-4 rounded-lg hover:opacity-90 transition-opacity font-medium">
                 DA
               </button>
-              <button
-                onClick={() => setShowResetConfirmation(false)}
-                className="flex-1 bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors font-medium"
-              >
+              <Button variant="ghost" onClick={() => setShowResetConfirmation(false)} className="flex-1 justify-center">
                 NU
-              </button>
+              </Button>
             </div>
           </div>
         </div>
