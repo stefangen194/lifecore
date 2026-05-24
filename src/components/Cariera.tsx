@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Upload, Play, Users, TrendingUp, Award, Heart, CheckCircle, ArrowRight } from 'lucide-react';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import TermsModal from './TermsModal';
+import NotificationModal from './NotificationModal';
 import { Section, Container, Eyebrow, Button, InputField } from './ui';
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -18,7 +19,9 @@ const Cariera: React.FC = () => {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [notice, setNotice] = useState<{ variant: 'success' | 'error'; title: string; message: string } | null>(null);
   const turnstileRef = useRef<TurnstileInstance>(null);
+  const previewRefs = useRef<Record<number, HTMLVideoElement | null>>({});
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -49,11 +52,11 @@ const Cariera: React.FC = () => {
   // Client-side gate (UX only — the server re-validates type, magic bytes and size).
   const acceptFile = (file: File) => {
     if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-      alert('Te rugăm să încarci doar fișiere PDF');
+      setNotice({ variant: 'error', title: 'Fișier invalid', message: 'Te rugăm să încarci doar fișiere PDF' });
       return;
     }
     if (file.size > MAX_FILE_BYTES) {
-      alert('Fișierul depășește limita de 5MB');
+      setNotice({ variant: 'error', title: 'Fișier prea mare', message: 'Fișierul depășește limita de 5MB' });
       return;
     }
     setUploadedFile(file);
@@ -136,16 +139,16 @@ const Cariera: React.FC = () => {
       });
 
       if (response.ok) {
-        alert('Aplicația ta a fost trimisă cu succes!');
+        setNotice({ variant: 'success', title: 'Trimis cu succes!', message: 'Aplicația ta a fost trimisă cu succes!' });
         setFormData({ name: '', email: '', phone: '', message: '' });
         setUploadedFile(null);
         setTermsAccepted(false);
       } else {
         const data = await response.json().catch(() => ({}));
-        alert(data.error || 'A apărut o eroare. Te rugăm să încerci din nou.');
+        setNotice({ variant: 'error', title: 'A apărut o eroare', message: data.error || 'Te rugăm să încerci din nou.' });
       }
     } catch {
-      alert('A apărut o eroare. Te rugăm să încerci din nou.');
+      setNotice({ variant: 'error', title: 'A apărut o eroare', message: 'Te rugăm să încerci din nou.' });
     } finally {
       // Turnstile tokens are single-use — reset so the next submit gets a fresh one.
       setTurnstileToken('');
@@ -168,6 +171,7 @@ const Cariera: React.FC = () => {
             <video
               id={`modal-video-${playingVideo}`}
               className="w-full h-full object-cover bg-black rounded-lg pointer-events-auto"
+              poster={videoSlots.find((v) => v.id === playingVideo)?.coverImage}
               controls
               controlsList="nodownload nofullscreen"
               autoPlay
@@ -249,10 +253,33 @@ const Cariera: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {videoSlots.map((video) => (
               <div key={video.id} className="bg-paper-hi border border-ink-300 rounded-xl overflow-hidden">
-                <div className="relative bg-paper-lo aspect-[9/16]">
-                  {video.coverImage && (
-                    <img src={video.coverImage} alt={video.title} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
-                  )}
+                <div
+                  className="relative bg-paper-lo aspect-[9/16]"
+                  onMouseEnter={() => {
+                    const v = previewRefs.current[video.id];
+                    if (v) {
+                      v.currentTime = video.startTime || 0;
+                      v.play().catch(() => {});
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    const v = previewRefs.current[video.id];
+                    if (v) {
+                      v.pause();
+                      v.currentTime = video.startTime || 0;
+                    }
+                  }}
+                >
+                  <video
+                    ref={(el) => { previewRefs.current[video.id] = el; }}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    src={`${video.videoUrl}#t=${video.startTime || 0.1}`}
+                    poster={video.coverImage}
+                    preload="metadata"
+                    muted
+                    loop
+                    playsInline
+                  />
                   <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                     <button
                       onClick={() => setPlayingVideo(video.id)}
@@ -262,9 +289,9 @@ const Cariera: React.FC = () => {
                       <Play className="w-8 h-8 text-[#0B0B0C] fill-[#0B0B0C]" />
                     </button>
                   </div>
-                  <div className="absolute bottom-0 inset-x-0 p-4 bg-gradient-to-t from-black/70 to-transparent">
-                    <div className="text-paper font-display text-lg leading-tight">{video.title}</div>
-                    <div className="text-paper/70 text-xs mt-1">{video.consultant}</div>
+                  <div className="absolute bottom-0 inset-x-0 p-4 bg-gradient-to-t from-black via-black/85 to-transparent">
+                    <div className="text-gold-500 font-display text-lg leading-tight">{video.title}</div>
+                    <div className="text-gold-500/75 text-xs mt-1">{video.consultant}</div>
                   </div>
                 </div>
               </div>
@@ -396,6 +423,14 @@ const Cariera: React.FC = () => {
       </Section>
 
       <TermsModal isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} />
+
+      <NotificationModal
+        isOpen={notice !== null}
+        variant={notice?.variant ?? 'success'}
+        title={notice?.title ?? ''}
+        message={notice?.message ?? ''}
+        onClose={() => setNotice(null)}
+      />
     </div>
   );
 };
