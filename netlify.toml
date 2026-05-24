@@ -1,0 +1,45 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[dev]
+  command = "npm run dev"
+  targetPort = 5173
+  framework = "#custom"
+
+# --- API aliases: must come BEFORE the SPA catch-all so /api/* isn't swallowed ---
+[[redirects]]
+  from = "/api/submit-application"
+  to = "/.netlify/functions/submit-application"
+  status = 200
+
+[[redirects]]
+  from = "/api/consent-log"
+  to = "/.netlify/functions/consent-log"
+  status = 200
+
+# --- SPA fallback (replaces public/_redirects). Keep LAST. ---
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# --- Security headers (applied to every response) ---
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Clickjacking protection — X-Frame-Options for legacy browsers; the CSP
+    # `frame-ancestors 'self'` directive (now enforcing, below) is the modern equivalent.
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # Voiceflow voice uses the mic — if that feature is enabled, change microphone=() to microphone=(self).
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+
+    # CSP is now ENFORCED. Verify every flow in a deploy preview with DevTools open
+    # (career form + Turnstile, Calendly modal, Voiceflow chat, Google Maps, PDF export,
+    # video). If a legitimate resource is blocked, add its origin to the right directive.
+    # To temporarily revert to non-blocking, rename this key to `Content-Security-Policy-Report-Only`.
+    Content-Security-Policy = "default-src 'self'; script-src 'self' https://assets.calendly.com https://cdn.voiceflow.com https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://assets.calendly.com https://cdn.voiceflow.com; font-src 'self' data: https://fonts.gstatic.com https://assets.calendly.com https://*.voiceflow.com; img-src 'self' data: blob: https://znqyczx2zp.ufs.sh https://images.pexels.com https://calendly.com https://*.calendly.com https://*.google.com https://*.gstatic.com https://*.voiceflow.com https://cm4-production-assets.s3.amazonaws.com; media-src 'self' blob: https://znqyczx2zp.ufs.sh; frame-src https://calendly.com https://*.calendly.com https://www.google.com https://challenges.cloudflare.com; connect-src 'self' https://general-runtime.voiceflow.com https://runtime-api.voiceflow.com https://*.voiceflow.com https://calendly.com https://*.calendly.com https://challenges.cloudflare.com; worker-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; upgrade-insecure-requests"

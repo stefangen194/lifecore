@@ -68,9 +68,9 @@ const Breadcrumbs: React.FC = () => {
   });
 
   return (
-    <nav aria-label="Breadcrumb" className="bg-gray-50 border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-6 py-3">
-        <ol className="flex items-center space-x-2 text-sm" itemScope itemType="https://schema.org/BreadcrumbList">
+    <nav aria-label="Breadcrumb" className="bg-paper-lo border-b border-ink-200">
+      <div className="container-wide py-3">
+        <ol className="flex items-center flex-wrap text-sm" itemScope itemType="https://schema.org/BreadcrumbList">
           {breadcrumbs.map((crumb, index) => {
             const isLast = index === breadcrumbs.length - 1;
 
@@ -82,25 +82,23 @@ const Breadcrumbs: React.FC = () => {
                 itemScope
                 itemType="https://schema.org/ListItem"
               >
-                {index > 0 && (
-                  <ChevronRight className="text-gray-400 mx-2" size={16} />
-                )}
+                {index > 0 && <ChevronRight className="text-ink-400 mx-2" size={16} />}
                 {isLast ? (
                   <span
-                    className="text-gray-600 font-medium flex items-center"
+                    className="text-ink-900 font-medium flex items-center"
                     itemProp="name"
                     aria-current="page"
                   >
-                    {index === 0 && <Home size={16} className="mr-1" />}
+                    {index === 0 && <Home size={16} className="mr-1.5 text-gold-500" />}
                     {crumb.label}
                   </span>
                 ) : (
                   <Link
                     to={crumb.path}
-                    className="text-blue-600 hover:text-blue-800 transition-colors flex items-center"
+                    className="text-ink-500 hover:text-gold-500 transition-colors flex items-center"
                     itemProp="item"
                   >
-                    {index === 0 && <Home size={16} className="mr-1" />}
+                    {index === 0 && <Home size={16} className="mr-1.5 text-gold-500" />}
                     <span itemProp="name">{crumb.label}</span>
                   </Link>
                 )}

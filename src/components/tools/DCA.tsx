@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, Calendar } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 
 const DCA: React.FC = () => {
   return (

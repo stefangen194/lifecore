@@ -1,26 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { Upload, Play, Users, TrendingUp, Award, Heart, CheckCircle, ArrowRight, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Upload, Play, Users, TrendingUp, Award, Heart, CheckCircle, ArrowRight } from 'lucide-react';
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import TermsModal from './TermsModal';
+import { Section, Container, Eyebrow, Button, InputField } from './ui';
+
+const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RE = /^[\d\s+\-()]{7,20}$/;
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
 
 const Cariera: React.FC = () => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [playingVideo, setPlayingVideo] = useState<number | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    message: ''
-  });
+  const [formData, setFormData] = useState({ name: '', email: '', phone: '', message: '' });
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
+    if (e.type === 'dragenter' || e.type === 'dragover') {
       setDragActive(true);
-    } else if (e.type === "dragleave") {
+    } else if (e.type === 'dragleave') {
       setDragActive(false);
     }
   };
@@ -29,26 +34,29 @@ const Cariera: React.FC = () => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      if (file.type === "application/pdf" || file.name.endsWith('.pdf')) {
-        setUploadedFile(file);
-      } else {
-        alert('Te rugăm să încarci doar fișiere PDF');
-      }
+      acceptFile(e.dataTransfer.files[0]);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.type === "application/pdf" || file.name.endsWith('.pdf')) {
-        setUploadedFile(file);
-      } else {
-        alert('Te rugăm să încarci doar fișiere PDF');
-      }
+      acceptFile(e.target.files[0]);
     }
+  };
+
+  // Client-side gate (UX only — the server re-validates type, magic bytes and size).
+  const acceptFile = (file: File) => {
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      alert('Te rugăm să încarci doar fișiere PDF');
+      return;
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      alert('Fișierul depășește limita de 5MB');
+      return;
+    }
+    setUploadedFile(file);
   };
 
   const closeModal = () => {
@@ -76,48 +84,53 @@ const Cariera: React.FC = () => {
     } else {
       document.body.style.overflow = '';
     }
-
     return () => {
       document.body.style.overflow = '';
     };
   }, [playingVideo]);
 
   const videoSlots = [
-    { id: 1, title: "Pot lucra part-time?", consultant: "Diana Cristina Dumitrescu", videoUrl: "https://znqyczx2zp.ufs.sh/f/eultE62Lh8mD0Fw7o489BfF7TwAVoxr4zJcMSlpyXD3q6ZaO", startTime: 0, coverImage: "https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDHf32DARSI7VJzYR3jMQgn8cNyqbm5kur2flD" },
-    { id: 2, title: "Reconversie Profesională", consultant: "Florin Dragoș Vasile", videoUrl: "https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDqZuZLD0CD4Xa73z0ndLVyWMt2HOTF1huiQCP", startTime: 3, coverImage: "https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDvCueMuXhRUTdflvZPFNw0k5zxJ8MABaLOj3H" },
-    { id: 3, title: "De ce consultanță și viitorul în această activitate", consultant: "Bebe Dan Olteanu", videoUrl: "https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDzuTMIUaxlkR4VY17q5A3tZMbsr9vjfhcGC6J", startTime: 0, coverImage: "https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDw023eAcXkDGTNR981htiPbWsfM3zdV6KQe0E" },
-    { id: 4, title: "Dezvoltare personală și profesională", consultant: "Ștefănel Genunche", videoUrl: "https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDue0ZgV5paoLCXtGUdYQyAxsSrKJHTE03kM74", startTime: 3, coverImage: "https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDxsZFVtXb0vMdUt5pysmYonBaFIfwKh9QSgON" },
-    { id: 5, title: "Succesele și provocările", consultant: "Laura Denisia Negoi", videoUrl: "https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDWiSrLVqEZ5eug94mnIbyza2Ux7QMsoJkcPFV", startTime: 0, coverImage: "https://znqyczx2zp.ufs.sh/f/eultE62Lh8mD3GbqR8oxJXv2CO9PfY6ualImeKViBTnAs4LS" },
-    { id: 6, title: "Cum arată o zi", consultant: "Diana Ioana Ionescu", videoUrl: "https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDK6d351YMOz3QDlNv2uT1oBSGsWRjybhg8wP6", startTime: 0, coverImage: "https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDHVzzq4kRSI7VJzYR3jMQgn8cNyqbm5kur2fl" }
+    { id: 1, title: 'Pot lucra part-time?', consultant: 'Diana Cristina Dumitrescu', videoUrl: 'https://znqyczx2zp.ufs.sh/f/eultE62Lh8mD0Fw7o489BfF7TwAVoxr4zJcMSlpyXD3q6ZaO', startTime: 0, coverImage: 'https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDHf32DARSI7VJzYR3jMQgn8cNyqbm5kur2flD' },
+    { id: 2, title: 'Reconversie Profesională', consultant: 'Florin Dragoș Vasile', videoUrl: 'https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDqZuZLD0CD4Xa73z0ndLVyWMt2HOTF1huiQCP', startTime: 3, coverImage: 'https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDvCueMuXhRUTdflvZPFNw0k5zxJ8MABaLOj3H' },
+    { id: 3, title: 'De ce consultanță și viitorul în această activitate', consultant: 'Bebe Dan Olteanu', videoUrl: 'https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDzuTMIUaxlkR4VY17q5A3tZMbsr9vjfhcGC6J', startTime: 0, coverImage: 'https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDw023eAcXkDGTNR981htiPbWsfM3zdV6KQe0E' },
+    { id: 4, title: 'Dezvoltare personală și profesională', consultant: 'Ștefănel Genunche', videoUrl: 'https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDue0ZgV5paoLCXtGUdYQyAxsSrKJHTE03kM74', startTime: 3, coverImage: 'https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDxsZFVtXb0vMdUt5pysmYonBaFIfwKh9QSgON' },
+    { id: 5, title: 'Succesele și provocările', consultant: 'Laura Denisia Negoi', videoUrl: 'https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDWiSrLVqEZ5eug94mnIbyza2Ux7QMsoJkcPFV', startTime: 0, coverImage: 'https://znqyczx2zp.ufs.sh/f/eultE62Lh8mD3GbqR8oxJXv2CO9PfY6ualImeKViBTnAs4LS' },
+    { id: 6, title: 'Cum arată o zi', consultant: 'Diana Ioana Ionescu', videoUrl: 'https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDK6d351YMOz3QDlNv2uT1oBSGsWRjybhg8wP6', startTime: 0, coverImage: 'https://znqyczx2zp.ufs.sh/f/eultE62Lh8mDHVzzq4kRSI7VJzYR3jMQgn8cNyqbm5kur2fl' },
   ];
 
   const benefits = [
-    { icon: TrendingUp, title: "Creștere Profesională", desc: "Dezvoltare continuă prin training-uri și certificări" },
-    { icon: Users, title: "Echipă Unită", desc: "Lucrezi alături de profesioniști pasionați" },
-    { icon: Award, title: "Recunoaștere", desc: "Performanțele tale sunt apreciate și recompensate" },
-    { icon: Heart, title: "Impact Real", desc: "Ajuți oamenii să-și atingă obiectivele financiare" }
+    { icon: TrendingUp, title: 'Creștere Profesională', desc: 'Dezvoltare continuă prin training-uri și certificări' },
+    { icon: Users, title: 'Echipă Unită', desc: 'Lucrezi alături de profesioniști pasionați' },
+    { icon: Award, title: 'Recunoaștere', desc: 'Performanțele tale sunt apreciate și recompensate' },
+    { icon: Heart, title: 'Impact Real', desc: 'Ajuți oamenii să-și atingă obiectivele financiare' },
   ];
 
-  const isFormComplete = formData.name.trim() !== '' &&
-                         formData.email.trim() !== '' &&
-                         formData.phone.trim() !== '' &&
-                         uploadedFile !== null &&
-                         termsAccepted;
+  const isFormComplete =
+    formData.name.trim() !== '' &&
+    EMAIL_RE.test(formData.email.trim()) &&
+    PHONE_RE.test(formData.phone.trim()) &&
+    uploadedFile !== null &&
+    termsAccepted &&
+    turnstileToken !== '';
 
   const handleFinalizare = async () => {
-    if (!isFormComplete) return;
+    if (!isFormComplete || submitting) return;
 
+    setSubmitting(true);
     try {
       const formDataToSend = new FormData();
       formDataToSend.append('name', formData.name);
       formDataToSend.append('email', formData.email);
       formDataToSend.append('phone', formData.phone);
       formDataToSend.append('message', formData.message);
+      formDataToSend.append('cf-turnstile-response', turnstileToken);
       if (uploadedFile) {
         formDataToSend.append('cv', uploadedFile);
       }
 
-      const response = await fetch('https://hook.eu1.make.com/xnwdxoukkmxdvrah4n8do2jq6bthp85t', {
+      // Routed through a Netlify Function (/api/*) that verifies Turnstile, re-validates
+      // input and forwards to the Make.com webhook — the webhook URL is no longer in the client.
+      const response = await fetch('/api/submit-application', {
         method: 'POST',
         body: formDataToSend,
       });
@@ -128,29 +141,28 @@ const Cariera: React.FC = () => {
         setUploadedFile(null);
         setTermsAccepted(false);
       } else {
-        alert('A apărut o eroare. Te rugăm să încerci din nou.');
+        const data = await response.json().catch(() => ({}));
+        alert(data.error || 'A apărut o eroare. Te rugăm să încerci din nou.');
       }
-    } catch (error) {
-      console.error('Error submitting form:', error);
+    } catch {
       alert('A apărut o eroare. Te rugăm să încerci din nou.');
+    } finally {
+      // Turnstile tokens are single-use — reset so the next submit gets a fresh one.
+      setTurnstileToken('');
+      turnstileRef.current?.reset();
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="bg-paper">
       {/* Video Modal */}
       {playingVideo !== null && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          onClick={closeModal}
-        >
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center" onClick={closeModal}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
           <div
             className="relative z-10"
-            style={{
-              width: 'min(90vh * 9 / 16, 90vw)',
-              aspectRatio: '9 / 16'
-            }}
+            style={{ width: 'min(90vh * 9 / 16, 90vw)', aspectRatio: '9 / 16' }}
             onClick={(e) => e.stopPropagation()}
           >
             <video
@@ -171,156 +183,117 @@ const Cariera: React.FC = () => {
               }}
               onLoadedMetadata={(e) => {
                 const videoElement = e.currentTarget;
-                const video = videoSlots.find(v => v.id === playingVideo);
+                const video = videoSlots.find((v) => v.id === playingVideo);
                 if (video && video.startTime) {
                   videoElement.currentTime = 0;
                 }
               }}
             >
-              <source
-                src={videoSlots.find(v => v.id === playingVideo)?.videoUrl}
-                type="video/mp4"
-              />
+              <source src={videoSlots.find((v) => v.id === playingVideo)?.videoUrl} type="video/mp4" />
               Your browser does not support the video tag.
             </video>
           </div>
         </div>
       )}
 
-      {/* Hero Section */}
-      <div className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 py-20 overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -translate-y-48 translate-x-48"></div>
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full translate-y-32 -translate-x-32"></div>
-        
-        <div className="max-w-6xl mx-auto px-6 relative z-10">
-          <div className="text-center text-white">
-            <h1 className="text-5xl font-bold mb-6">Alătură-te Echipei Noastre</h1>
-            <p className="text-xl text-blue-100 mb-8 max-w-3xl mx-auto leading-relaxed">
-              Construiește o carieră de succes în consultanța financiară. Ajută oamenii să-și atingă 
-              obiectivele financiare și dezvoltă-te profesional într-un mediu dinamic și motivant.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="#upload-cv" className="bg-white text-blue-700 px-8 py-4 rounded-lg hover:bg-gray-100 transition-all duration-300 font-bold text-lg transform hover:scale-105 shadow-xl">
-                Aplică Acum
-              </a>
-              <a href="#testimonials" className="border-2 border-white text-white px-8 py-4 rounded-lg hover:bg-white hover:text-blue-700 transition-all duration-300 font-bold text-lg transform hover:scale-105">
-                Ascultă Poveștile Noastre
-              </a>
-            </div>
+      {/* Hero */}
+      <Section tone="paper-lo" className="pt-12 pb-16 md:pt-16 md:pb-20 text-center">
+        <Container wide>
+          <Eyebrow tone="gold" dot className="mb-6 justify-center">Carieră</Eyebrow>
+          <h1 className="font-display text-5xl md:text-7xl leading-none mb-6">
+            Alătură-te <span className="italic text-gold-700">echipei</span> noastre.
+          </h1>
+          <p className="text-lg text-ink-700 mb-10 max-w-3xl mx-auto leading-relaxed">
+            Construiește o carieră de succes în consultanța financiară. Ajută oamenii să-și atingă obiectivele
+            și dezvoltă-te profesional într-un mediu dinamic și motivant.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button variant="gold" size="lg" href="#upload-cv">Aplică acum</Button>
+            <Button variant="ghost" size="lg" href="#testimonials">Ascultă poveștile noastre</Button>
           </div>
-        </div>
-      </div>
+        </Container>
+      </Section>
 
-      {/* Benefits Section */}
-      <div className="py-16 bg-white">
-        <div className="max-w-6xl mx-auto px-6">
+      {/* Benefits */}
+      <Section tone="paper">
+        <Container wide>
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">De ce să alegi cariera cu noi?</h2>
-            <p className="text-lg text-gray-600">Descoperă avantajele unei cariere în consultanța financiară</p>
+            <Eyebrow tone="gold" dot className="mb-4 justify-center">Avantaje</Eyebrow>
+            <h2 className="font-display text-4xl md:text-5xl leading-none">De ce să alegi cariera cu noi?</h2>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {benefits.map((benefit, index) => {
-              const IconComponent = benefit.icon;
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {benefits.map((benefit) => {
+              const Icon = benefit.icon;
               return (
-                <div key={index} className="text-center group">
-                  <div className="bg-gradient-to-br from-blue-100 to-purple-100 p-6 rounded-full w-20 h-20 mx-auto mb-4 group-hover:shadow-xl transition-all duration-300 transform group-hover:scale-110">
-                    <IconComponent className="text-blue-600 w-8 h-8 mx-auto" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">{benefit.title}</h3>
-                  <p className="text-gray-600">{benefit.desc}</p>
+                <div key={benefit.title} className="bg-paper-hi border border-ink-300 rounded-lg p-8 text-center">
+                  <span className="grid place-items-center w-16 h-16 mx-auto mb-4 rounded-full bg-gold-500/15 border border-gold-500/40">
+                    <Icon className="text-gold-500" size={28} />
+                  </span>
+                  <h3 className="font-display text-xl mb-2">{benefit.title}</h3>
+                  <p className="text-sm text-ink-600">{benefit.desc}</p>
                 </div>
               );
             })}
           </div>
-        </div>
-      </div>
+        </Container>
+      </Section>
 
-      {/* Video Testimonials Section */}
-      <div id="testimonials" className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-6">
+      {/* Video testimonials */}
+      <Section tone="paper-lo" id="testimonials">
+        <Container wide>
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Poveștile Consultanților Noștri</h2>
-            <p className="text-lg text-gray-600">Ascultă experiențele reale ale colegilor tăi viitori</p>
+            <Eyebrow tone="gold" dot className="mb-4 justify-center">Povești</Eyebrow>
+            <h2 className="font-display text-4xl md:text-5xl leading-none mb-3">Poveștile consultanților noștri</h2>
+            <p className="text-ink-600">Ascultă experiențele reale ale colegilor tăi viitori.</p>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {videoSlots.map((video) => (
-              <div key={video.id} className="bg-white rounded-xl shadow-lg overflow-hidden">
-                <div className="relative bg-gradient-to-br from-gray-800 to-gray-900 aspect-[9/16]">
-                  {video.videoUrl ? (
-                    <>
-                      {video.coverImage && (
-                        <img
-                          src={video.coverImage}
-                          alt="Cover"
-                          className="absolute inset-0 w-full h-full object-cover"
-                        />
-                      )}
-                      {!video.coverImage && (
-                        <video
-                          id={`video-${video.id}`}
-                          className="w-full h-full object-cover"
-                          preload="metadata"
-                          onLoadedMetadata={(e) => {
-                            const videoElement = e.currentTarget;
-                            if (video.startTime) {
-                              videoElement.currentTime = video.startTime;
-                            }
-                          }}
-                        >
-                          <source src={`${video.videoUrl}#t=${video.startTime || 0}`} type="video/mp4" />
-                          Your browser does not support the video tag.
-                        </video>
-                      )}
-
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <button
-                          onClick={() => setPlayingVideo(video.id)}
-                          className="bg-white/90 hover:bg-white rounded-full p-6 transition-all duration-300 transform hover:scale-110 shadow-xl"
-                        >
-                          <Play className="w-12 h-12 text-blue-600 fill-blue-600" />
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <div className="text-center text-white">
-                        <div className="bg-white/20 rounded-full p-6 mb-4">
-                          <Play className="w-12 h-12 text-white" />
-                        </div>
-                        <p className="text-sm opacity-75">Video va fi disponibil în curând</p>
-                      </div>
-                    </div>
+              <div key={video.id} className="bg-paper-hi border border-ink-300 rounded-xl overflow-hidden">
+                <div className="relative bg-paper-lo aspect-[9/16]">
+                  {video.coverImage && (
+                    <img src={video.coverImage} alt={video.title} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
                   )}
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                    <button
+                      onClick={() => setPlayingVideo(video.id)}
+                      className="bg-gold-500 hover:bg-gold-400 rounded-full p-5 transition-all duration-300 hover:scale-110 shadow-lg"
+                      aria-label={`Redă: ${video.title}`}
+                    >
+                      <Play className="w-8 h-8 text-[#0B0B0C] fill-[#0B0B0C]" />
+                    </button>
+                  </div>
+                  <div className="absolute bottom-0 inset-x-0 p-4 bg-gradient-to-t from-black/70 to-transparent">
+                    <div className="text-paper font-display text-lg leading-tight">{video.title}</div>
+                    <div className="text-paper/70 text-xs mt-1">{video.consultant}</div>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
-        </div>
-      </div>
+        </Container>
+      </Section>
 
-      {/* CV Upload Section */}
-      <div id="upload-cv" className="py-20 bg-gradient-to-r from-blue-600 to-purple-600">
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="text-center text-white mb-12">
-            <h2 className="text-4xl font-bold mb-4">Gata să Începi?</h2>
-            <p className="text-xl text-blue-100">Încarcă-ți CV-ul și fă primul pas către o carieră de succes</p>
+      {/* CV Upload */}
+      <Section tone="paper" id="upload-cv">
+        <Container wide className="max-w-4xl">
+          <div className="text-center mb-10">
+            <Eyebrow tone="gold" dot className="mb-4 justify-center">Aplică</Eyebrow>
+            <h2 className="font-display text-4xl md:text-5xl leading-none mb-3">Gata să începi?</h2>
+            <p className="text-ink-600">Încarcă-ți CV-ul și fă primul pas către o carieră de succes.</p>
           </div>
-          
-          <div className="bg-white rounded-2xl p-8 shadow-2xl">
+
+          <div className="bg-paper-hi border border-ink-300 rounded-2xl p-6 md:p-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Upload Area */}
+              {/* Upload area */}
               <div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">Încarcă CV-ul</h3>
-                
+                <h3 className="font-display text-2xl mb-6">Încarcă CV-ul</h3>
                 <div
                   className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 ${
-                    dragActive 
-                      ? 'border-blue-500 bg-blue-50' 
-                      : uploadedFile 
-                        ? 'border-green-500 bg-green-50' 
-                        : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                    dragActive
+                      ? 'border-gold-500 bg-gold-500/10'
+                      : uploadedFile
+                        ? 'border-sage bg-sage/10'
+                        : 'border-ink-300 hover:border-gold-500 hover:bg-paper-lo'
                   }`}
                   onDragEnter={handleDrag}
                   onDragLeave={handleDrag}
@@ -328,107 +301,54 @@ const Cariera: React.FC = () => {
                   onDrop={handleDrop}
                 >
                   {uploadedFile ? (
-                    <div className="text-green-600">
+                    <div className="text-sage">
                       <CheckCircle className="w-12 h-12 mx-auto mb-4" />
-                      <p className="font-semibold mb-2">CV încărcat cu succes!</p>
-                      <p className="text-sm text-gray-600">{uploadedFile.name}</p>
+                      <p className="font-semibold mb-2 text-ink-900">CV încărcat cu succes!</p>
+                      <p className="text-sm text-ink-600">{uploadedFile.name}</p>
                     </div>
                   ) : (
-                    <div className="text-gray-600">
-                      <Upload className="w-12 h-12 mx-auto mb-4 text-blue-500" />
-                      <p className="font-semibold mb-2">Trage și lasă CV-ul aici</p>
+                    <div className="text-ink-600">
+                      <Upload className="w-12 h-12 mx-auto mb-4 text-gold-500" />
+                      <p className="font-semibold mb-2 text-ink-900">Trage și lasă CV-ul aici</p>
                       <p className="text-sm mb-4">sau</p>
-                      <label className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer inline-block">
-                        Selectează Fișierul
-                        <input
-                          type="file"
-                          accept=".pdf"
-                          onChange={handleFileChange}
-                          className="hidden"
-                        />
+                      <label className="btn btn-gold btn-sm cursor-pointer inline-flex">
+                        Selectează fișierul
+                        <input type="file" accept=".pdf" onChange={handleFileChange} className="hidden" />
                       </label>
-                      <p className="text-xs text-gray-500 mt-4">Doar fișiere PDF (max 5MB)</p>
+                      <p className="text-xs text-ink-500 mt-4">Doar fișiere PDF (max 5MB)</p>
                     </div>
                   )}
                 </div>
-                
               </div>
-              
-              {/* Contact Form */}
+
+              {/* Contact form */}
               <div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-6">Informații de Contact</h3>
-                
+                <h3 className="font-display text-2xl mb-6">Informații de contact</h3>
                 <form className="space-y-4">
+                  <InputField label="Nume Complet *" type="text" required value={formData.name} onChange={(v) => setFormData({ ...formData, name: v })} placeholder="Ion Popescu" />
+                  <InputField label="Email *" type="email" required value={formData.email} onChange={(v) => setFormData({ ...formData, email: v })} placeholder="ion.popescu@email.com" />
+                  <InputField label="Telefon *" type="tel" required value={formData.phone} onChange={(v) => setFormData({ ...formData, phone: v })} placeholder="+40 XXX XXX XXX" />
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Nume Complet *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Ion Popescu"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email *
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="ion.popescu@email.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Telefon *
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="+40 XXX XXX XXX"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Mesaj (opțional)
-                    </label>
+                    <label className="block text-sm font-medium text-ink-700 mb-2">Mesaj (opțional)</label>
                     <textarea
                       rows={4}
                       value={formData.message}
                       onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3.5 py-2.5 text-sm bg-paper border border-ink-300 rounded-lg text-ink-900 placeholder:text-ink-500 transition-colors focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/30"
                       placeholder="Spune-ne de ce vrei să te alături echipei noastre..."
-                    ></textarea>
+                    />
                   </div>
-
-                  <div className="mt-6 flex items-start">
+                  <div className="flex items-start gap-3">
                     <input
                       type="checkbox"
                       id="terms"
                       checked={termsAccepted}
                       onChange={(e) => setTermsAccepted(e.target.checked)}
-                      className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      className="mt-1 w-4 h-4 accent-gold-500 border-ink-300 rounded"
                     />
-                    <label htmlFor="terms" className="ml-3 text-sm text-gray-700">
+                    <label htmlFor="terms" className="text-sm text-ink-700">
                       Accept{' '}
-                      <button
-                        type="button"
-                        onClick={() => setShowTermsModal(true)}
-                        className="text-blue-600 hover:text-blue-800 underline font-medium"
-                      >
+                      <button type="button" onClick={() => setShowTermsModal(true)} className="text-gold-500 hover:text-gold-400 underline font-medium">
                         Termenii și Condițiile
                       </button>
                     </label>
@@ -437,36 +357,43 @@ const Cariera: React.FC = () => {
               </div>
             </div>
 
-            <button
-              onClick={handleFinalizare}
-              disabled={!isFormComplete}
-              className={`w-full py-4 px-6 rounded-lg font-bold text-lg mt-8 flex items-center justify-center transition-all duration-300 ${
-                isFormComplete
-                  ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer transform hover:scale-105 shadow-lg'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
-            >
-              Finalizare
-              <ArrowRight className="ml-2 w-5 h-5" />
-            </button>
+            {TURNSTILE_SITE_KEY ? (
+              <div className="mt-6 flex justify-center">
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={TURNSTILE_SITE_KEY}
+                  onSuccess={setTurnstileToken}
+                  onExpire={() => setTurnstileToken('')}
+                  onError={() => setTurnstileToken('')}
+                  options={{ theme: 'dark' }}
+                />
+              </div>
+            ) : (
+              <p className="mt-6 text-center text-xs text-clay">
+                Verificarea anti-bot nu este configurată (VITE_TURNSTILE_SITE_KEY lipsește).
+              </p>
+            )}
+
+            <Button variant="gold" onClick={handleFinalizare} disabled={!isFormComplete || submitting} className="w-full justify-center mt-6">
+              {submitting ? 'Se trimite…' : 'Finalizare'}
+              {!submitting && <ArrowRight className="ml-1 w-5 h-5" />}
+            </Button>
           </div>
-        </div>
-      </div>
+        </Container>
+      </Section>
 
       {/* Final CTA */}
-      <div className="py-16 bg-white text-center">
-        <div className="max-w-4xl mx-auto px-6">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Ai întrebări?</h2>
-          <p className="text-lg text-gray-600 mb-8">
+      <Section tone="paper-lo" className="text-center">
+        <Container className="max-w-3xl">
+          <h2 className="font-display text-3xl md:text-4xl leading-none mb-4">Ai întrebări?</h2>
+          <p className="text-lg text-ink-600 mb-8">
             Echipa noastră este gata să răspundă la toate întrebările tale despre carieră.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="mailto:cariera.lifecore@outlook.com" className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium">
-              Trimite-ne un email
-            </a>
-          </div>
-        </div>
-      </div>
+          <Button variant="gold" href="mailto:cariera.lifecore@outlook.com">
+            Trimite-ne un email
+          </Button>
+        </Container>
+      </Section>
 
       <TermsModal isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} />
     </div>

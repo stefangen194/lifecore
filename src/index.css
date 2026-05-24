@@ -1,3 +1,237 @@
+@import './styles/tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ============================================================================
+   Base — global element defaults driven by tokens
+   ============================================================================ */
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: rgb(var(--ink-900));
+    background: rgb(var(--paper));
+    font-size: var(--fs-base);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--gold-500));
+    outline-offset: 2px;
+  }
+
+  /* Range inputs — gold accent everywhere */
+  input[type='range'] {
+    accent-color: rgb(var(--gold-500));
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgb(var(--paper-lo));
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--ink-300));
+    border-radius: 999px;
+  }
+}
+
+/* ============================================================================
+   Components — the reusable editorial building blocks (mirrored by ui/*)
+   ============================================================================ */
+@layer components {
+  /* Layout containers */
+  .container-base {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+  .container-wide {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  /* Display type */
+  .font-display {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.02;
+  }
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+  .num {
+    font-family: var(--font-display);
+    font-feature-settings: 'tnum';
+    letter-spacing: -0.02em;
+    font-style: italic;
+  }
+
+  /* Section label */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: var(--fs-micro);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgb(var(--ink-500));
+  }
+
+  /* Hairline divider */
+  .hairline {
+    height: 1px;
+    background: rgb(var(--ink-300));
+    width: 100%;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 22px;
+    font-family: var(--font-sans);
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    border-radius: 999px;
+    transition: all 180ms ease;
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: rgb(var(--ink-900));
+    color: rgb(var(--paper));
+  }
+  .btn-primary:hover {
+    background: rgb(var(--gold-500));
+    color: rgb(11 11 12);
+  }
+  .btn-gold {
+    background: rgb(var(--gold-500));
+    color: rgb(11 11 12);
+  }
+  .btn-gold:hover {
+    background: rgb(var(--gold-400));
+  }
+  .btn-ghost {
+    background: transparent;
+    color: rgb(var(--ink-900));
+    border: 1px solid rgb(var(--ink-300));
+  }
+  .btn-ghost:hover {
+    border-color: rgb(var(--ink-900));
+    background: rgb(var(--ink-900));
+    color: rgb(var(--paper));
+  }
+  .btn-sm {
+    padding: 8px 14px;
+    font-size: var(--fs-xs);
+  }
+  .btn-lg {
+    padding: 18px 28px;
+    font-size: var(--fs-base);
+  }
+
+  /* Chips */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    font-family: var(--font-mono);
+    font-size: var(--fs-micro);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid rgb(var(--ink-300));
+    border-radius: 999px;
+    color: rgb(var(--ink-700));
+  }
+  .chip-gold {
+    border-color: rgb(var(--gold-500));
+    color: rgb(var(--gold-700));
+    background: rgb(var(--paper-hi));
+  }
+  .chip-ink {
+    background: rgb(var(--ink-900));
+    color: rgb(var(--paper));
+    border-color: rgb(var(--ink-900));
+  }
+
+  /* The gold arc — recurring brand mark */
+  .arc {
+    stroke: rgb(var(--gold-500));
+    fill: none;
+    stroke-linecap: round;
+  }
+
+  /* Photo placeholder — striped, labeled */
+  .photo-placeholder {
+    position: relative;
+    background:
+      repeating-linear-gradient(
+        135deg,
+        rgb(var(--paper-lo)) 0 2px,
+        rgb(var(--paper)) 2px 14px
+      ),
+      rgb(var(--paper-lo));
+    border: 1px solid rgb(var(--ink-300));
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    color: rgb(var(--ink-500));
+    font-family: var(--font-mono);
+    font-size: var(--fs-micro);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .photo-placeholder[data-label]::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    padding: 4px 8px;
+    background: rgb(var(--paper));
+    border: 1px solid rgb(var(--ink-300));
+  }
+  .photo-placeholder[data-dim]::after {
+    content: attr(data-dim);
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    color: rgb(var(--ink-400));
+  }
+}
+
+/* Entrance animation used by modals (outside @layer so it's never purged) */
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
